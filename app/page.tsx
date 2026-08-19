@@ -39,16 +39,20 @@ type CategoryName =
   | "health"
   | "life";
 
+type TaskType = "multi_day" | "long_term";
+
 type Task = {
   id: string;
   title: string;
   description: string;
   startDate: string;
-  endDate: string;
+  endDate: string | null;
   time: string;
   allDay: boolean;
   category: CategoryName;
   completed: boolean;
+  completedAt: string | null;
+  taskType: TaskType;
   projectId: string | null;
 };
 
@@ -113,8 +117,10 @@ const translations = {
     description: "描述",
     optional: "可选",
 
-    singleDay: "单日",
-    multiDay: "多日",
+    multiDayTask: "多日任务",
+    longTermTask: "长期任务",
+    multiDayTaskDescription: "选择开始和结束日期；同一天即可作为普通单日任务",
+    longTermTaskDescription: "没有结束日期，未完成时会自动出现在当天",
 
     date: "日期",
     startDate: "开始日期",
@@ -217,8 +223,10 @@ const translations = {
     description: "Description",
     optional: "Optional",
 
-    singleDay: "Single Day",
-    multiDay: "Multiple Days",
+    multiDayTask: "Multi-day Task",
+    longTermTask: "Long-term Task",
+    multiDayTaskDescription: "Choose a start and end date; use the same date for a one-day task",
+    longTermTaskDescription: "No end date. If unfinished, it automatically appears today",
 
     date: "Date",
     startDate: "Start Date",
@@ -322,8 +330,10 @@ const translations = {
     description: "Descripción",
     optional: "Opcional",
 
-    singleDay: "Un día",
-    multiDay: "Varios días",
+    multiDayTask: "Tarea de varios días",
+    longTermTask: "Tarea a largo plazo",
+    multiDayTaskDescription: "Elige fecha de inicio y fin; usa la misma fecha para una tarea de un día",
+    longTermTaskDescription: "Sin fecha final. Si no se completa, aparece automáticamente hoy",
 
     date: "Fecha",
     startDate: "Fecha de inicio",
@@ -775,11 +785,13 @@ export default function Home() {
       title: row.title,
       description: row.description ?? "",
       startDate: row.start_date,
-      endDate: row.end_date,
+      endDate: row.end_date ?? null,
       time: row.time ?? "",
       allDay: row.all_day ?? false,
       category: row.category as CategoryName,
       completed: row.completed ?? false,
+      completedAt: row.completed_at ?? null,
+      taskType: (row.task_type ?? "multi_day") as TaskType,
       projectId: row.project_id ?? null,
     });
 
@@ -980,11 +992,20 @@ export default function Home() {
   const isDark = theme === "dark";
 
   const todayTasks = useMemo(() => {
-    return tasks.filter(
-      (task) =>
+    return tasks.filter((task) => {
+      if (task.taskType === "long_term") {
+        return (
+          !task.completed &&
+          task.startDate <= TODAY
+        );
+      }
+
+      return (
         task.startDate <= TODAY &&
+        !!task.endDate &&
         task.endDate >= TODAY
-    );
+      );
+    });
   }, [tasks]);
 
   const openCreate = () => {
@@ -1004,11 +1025,15 @@ export default function Home() {
     if (!task) return;
 
     const completed = !task.completed;
+    const completedAt = completed
+      ? TODAY
+      : null;
 
     const { error } = await supabase
       .from("tasks")
       .update({
         completed,
+        completed_at: completedAt,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -1021,7 +1046,9 @@ export default function Home() {
 
     setTasks((current) =>
       current.map((item) =>
-        item.id === id ? { ...item, completed } : item
+        item.id === id
+          ? { ...item, completed, completedAt }
+          : item
       )
     );
   };
@@ -1069,11 +1096,16 @@ export default function Home() {
         title: changes.title,
         description: changes.description,
         start_date: changes.startDate,
-        end_date: changes.endDate,
+        end_date:
+          changes.taskType === "long_term"
+            ? null
+            : changes.endDate,
         time: changes.time || null,
         all_day: changes.allDay,
         category: changes.category,
         completed: changes.completed,
+        completed_at: changes.completedAt,
+        task_type: changes.taskType,
         project_id: changes.projectId,
         updated_at: new Date().toISOString(),
       })
@@ -1696,11 +1728,16 @@ export default function Home() {
                 title: task.title,
                 description: task.description,
                 start_date: task.startDate,
-                end_date: task.endDate,
+                end_date:
+                  task.taskType === "long_term"
+                    ? null
+                    : task.endDate,
                 time: task.time || null,
                 all_day: task.allDay,
                 category: task.category,
                 completed: false,
+                completed_at: null,
+                task_type: task.taskType,
                 project_id: task.projectId,
               })
               .select()
@@ -1717,11 +1754,13 @@ export default function Home() {
                 title: data.title,
                 description: data.description ?? "",
                 startDate: data.start_date,
-                endDate: data.end_date,
+                endDate: data.end_date ?? null,
                 time: data.time ?? "",
                 allDay: data.all_day ?? false,
                 category: data.category as CategoryName,
                 completed: data.completed ?? false,
+                completedAt: data.completed_at ?? null,
+                taskType: (data.task_type ?? "multi_day") as TaskType,
                 projectId: data.project_id ?? null,
               },
               ...current,
@@ -2803,20 +2842,14 @@ function TaskForm({
   const [title, setTitle] =
     useState("");
 
-  const [
-    description,
-    setDescription,
-  ] = useState("");
+  const [description, setDescription] =
+    useState("");
 
-  const [mode, setMode] =
-    useState<
-      "single" | "multi"
-    >("single");
+  const [taskType, setTaskType] =
+    useState<TaskType>("multi_day");
 
-  const [
-    startDate,
-    setStartDate,
-  ] = useState(TODAY);
+  const [startDate, setStartDate] =
+    useState(TODAY);
 
   const [endDate, setEndDate] =
     useState(TODAY);
@@ -2828,9 +2861,7 @@ function TaskForm({
     useState(false);
 
   const [category, setCategory] =
-    useState<CategoryName>(
-      "study"
-    );
+    useState<CategoryName>("study");
 
   const [projectId, setProjectId] =
     useState<string | null>(null);
@@ -2846,18 +2877,18 @@ function TaskForm({
 
     onCreate({
       title: title.trim(),
-      description:
-        description.trim(),
+      description: description.trim(),
       startDate,
       endDate:
-        mode === "single"
-          ? startDate
+        taskType === "long_term"
+          ? null
           : endDate,
-      time:
-        allDay ? "" : time,
+      time: allDay ? "" : time,
       allDay,
       category,
       completed: false,
+      completedAt: null,
+      taskType,
       projectId,
     });
   };
@@ -2874,9 +2905,7 @@ function TaskForm({
           autoFocus
           value={title}
           onChange={(event) =>
-            setTitle(
-              event.target.value
-            )
+            setTitle(event.target.value)
           }
           placeholder={t.taskName}
           className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none"
@@ -2885,9 +2914,7 @@ function TaskForm({
         <textarea
           value={description}
           onChange={(event) =>
-            setDescription(
-              event.target.value
-            )
+            setDescription(event.target.value)
           }
           placeholder={`${t.description} (${t.optional})`}
           className="min-h-24 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none"
@@ -2896,65 +2923,62 @@ function TaskForm({
         <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1">
           <button
             type="button"
-            onClick={() => {
-              setMode("single");
-              setEndDate(
-                startDate
-              );
-            }}
-            className={`rounded-xl px-4 py-2 ${
-              mode === "single"
-                ? "bg-white shadow-sm"
-                : ""
+            onClick={() =>
+              setTaskType("multi_day")
+            }
+            className={`rounded-xl px-3 py-2.5 text-sm ${
+              taskType === "multi_day"
+                ? "bg-white font-medium shadow-sm"
+                : "text-slate-500"
             }`}
           >
-            {t.singleDay}
+            {t.multiDayTask}
           </button>
 
           <button
             type="button"
             onClick={() =>
-              setMode("multi")
+              setTaskType("long_term")
             }
-            className={`rounded-xl px-4 py-2 ${
-              mode === "multi"
-                ? "bg-white shadow-sm"
-                : ""
+            className={`rounded-xl px-3 py-2.5 text-sm ${
+              taskType === "long_term"
+                ? "bg-white font-medium shadow-sm"
+                : "text-slate-500"
             }`}
           >
-            {t.multiDay}
+            {t.longTermTask}
           </button>
         </div>
 
+        <p className="rounded-2xl bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-400">
+          {taskType === "long_term"
+            ? t.longTermTaskDescription
+            : t.multiDayTaskDescription}
+        </p>
+
         <label className="block">
           <span className="mb-2 block text-sm text-slate-500">
-            {mode === "single"
-              ? t.date
-              : t.startDate}
+            {t.startDate}
           </span>
 
           <input
             type="date"
             value={startDate}
             onChange={(event) => {
-              setStartDate(
-                event.target.value
-              );
+              const value =
+                event.target.value;
 
-              if (
-                mode ===
-                "single"
-              ) {
-                setEndDate(
-                  event.target.value
-                );
+              setStartDate(value);
+
+              if (endDate < value) {
+                setEndDate(value);
               }
             }}
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
           />
         </label>
 
-        {mode === "multi" && (
+        {taskType === "multi_day" && (
           <label className="block">
             <span className="mb-2 block text-sm text-slate-500">
               {t.endDate}
@@ -2984,18 +3008,14 @@ function TaskForm({
             value={time}
             disabled={allDay}
             onChange={(event) =>
-              setTime(
-                event.target.value
-              )
+              setTime(event.target.value)
             }
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 disabled:opacity-40"
           />
         </label>
 
         <label className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-          <span>
-            {t.allDay}
-          </span>
+          <span>{t.allDay}</span>
 
           <input
             type="checkbox"
@@ -3024,13 +3044,9 @@ function TaskForm({
 
       <ModalActions
         cancel={t.cancel}
-        submit={
-          t.createTask
-        }
+        submit={t.createTask}
         onCancel={onBack}
-        disabled={
-          !title.trim()
-        }
+        disabled={!title.trim()}
       />
     </form>
   );
@@ -3193,26 +3209,31 @@ function EditTaskModal({
 }) {
   const [title, setTitle] =
     useState(task.title);
+
   const [description, setDescription] =
     useState(task.description);
-  const [mode, setMode] =
-    useState<"single" | "multi">(
-      task.startDate === task.endDate
-        ? "single"
-        : "multi"
-    );
+
+  const [taskType, setTaskType] =
+    useState<TaskType>(task.taskType);
+
   const [startDate, setStartDate] =
     useState(task.startDate);
+
   const [endDate, setEndDate] =
-    useState(task.endDate);
+    useState(task.endDate ?? task.startDate);
+
   const [time, setTime] =
     useState(task.time);
+
   const [allDay, setAllDay] =
     useState(task.allDay);
+
   const [category, setCategory] =
     useState<CategoryName>(task.category);
+
   const [projectId, setProjectId] =
     useState<string | null>(task.projectId);
+
   const [saving, setSaving] =
     useState(false);
 
@@ -3233,13 +3254,15 @@ function EditTaskModal({
         description: description.trim(),
         startDate,
         endDate:
-          mode === "single"
-            ? startDate
+          taskType === "long_term"
+            ? null
             : endDate,
         time: allDay ? "" : time,
         allDay,
         category,
         completed: task.completed,
+        completedAt: task.completedAt,
+        taskType,
         projectId,
       });
     } finally {
@@ -3287,7 +3310,9 @@ function EditTaskModal({
           <textarea
             value={description}
             onChange={(event) =>
-              setDescription(event.target.value)
+              setDescription(
+                event.target.value
+              )
             }
             placeholder={`${t.description} (${t.optional})`}
             className="min-h-24 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none"
@@ -3296,39 +3321,42 @@ function EditTaskModal({
           <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1">
             <button
               type="button"
-              onClick={() => {
-                setMode("single");
-                setEndDate(startDate);
-              }}
-              className={`rounded-xl px-4 py-2 ${
-                mode === "single"
-                  ? "bg-white shadow-sm"
-                  : ""
+              onClick={() =>
+                setTaskType("multi_day")
+              }
+              className={`rounded-xl px-3 py-2.5 text-sm ${
+                taskType === "multi_day"
+                  ? "bg-white font-medium shadow-sm"
+                  : "text-slate-500"
               }`}
             >
-              {t.singleDay}
+              {t.multiDayTask}
             </button>
 
             <button
               type="button"
               onClick={() =>
-                setMode("multi")
+                setTaskType("long_term")
               }
-              className={`rounded-xl px-4 py-2 ${
-                mode === "multi"
-                  ? "bg-white shadow-sm"
-                  : ""
+              className={`rounded-xl px-3 py-2.5 text-sm ${
+                taskType === "long_term"
+                  ? "bg-white font-medium shadow-sm"
+                  : "text-slate-500"
               }`}
             >
-              {t.multiDay}
+              {t.longTermTask}
             </button>
           </div>
 
+          <p className="rounded-2xl bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-400">
+            {taskType === "long_term"
+              ? t.longTermTaskDescription
+              : t.multiDayTaskDescription}
+          </p>
+
           <label className="block">
             <span className="mb-2 block text-sm text-slate-500">
-              {mode === "single"
-                ? t.date
-                : t.startDate}
+              {t.startDate}
             </span>
 
             <input
@@ -3337,12 +3365,10 @@ function EditTaskModal({
               onChange={(event) => {
                 const value =
                   event.target.value;
+
                 setStartDate(value);
 
-                if (
-                  mode === "single" ||
-                  endDate < value
-                ) {
+                if (endDate < value) {
                   setEndDate(value);
                 }
               }}
@@ -3350,7 +3376,7 @@ function EditTaskModal({
             />
           </label>
 
-          {mode === "multi" && (
+          {taskType === "multi_day" && (
             <label className="block">
               <span className="mb-2 block text-sm text-slate-500">
                 {t.endDate}
@@ -3361,7 +3387,9 @@ function EditTaskModal({
                 min={startDate}
                 value={endDate}
                 onChange={(event) =>
-                  setEndDate(event.target.value)
+                  setEndDate(
+                    event.target.value
+                  )
                 }
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
               />
@@ -3391,7 +3419,9 @@ function EditTaskModal({
               type="checkbox"
               checked={allDay}
               onChange={(event) =>
-                setAllDay(event.target.checked)
+                setAllDay(
+                  event.target.checked
+                )
               }
             />
           </label>
@@ -4120,9 +4150,29 @@ function DynamicCalendar({
           const date = dayInfo.dateString;
 
           const dayTasks = tasks.filter(
-            (task) =>
-              task.startDate <= date &&
-              task.endDate >= date
+            (task) => {
+              if (
+                task.taskType === "long_term"
+              ) {
+                if (task.completed) {
+                  return (
+                    !!task.completedAt &&
+                    task.completedAt === date
+                  );
+                }
+
+                return (
+                  task.startDate <= TODAY &&
+                  date === TODAY
+                );
+              }
+
+              return (
+                task.startDate <= date &&
+                !!task.endDate &&
+                task.endDate >= date
+              );
+            }
           );
 
           const dayProjects = projects.filter(
@@ -4533,9 +4583,16 @@ function getWeekdayLabels(
 
 function formatDateRange(
   start: string,
-  end: string,
+  end: string | null,
   language: Language
 ) {
+  if (!end) {
+    return `${formatShortDate(
+      start,
+      language
+    )} → ∞`;
+  }
+
   if (start === end) {
     return formatShortDate(
       start,
