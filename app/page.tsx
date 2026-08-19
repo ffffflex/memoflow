@@ -27,6 +27,7 @@ type Page =
   | "today"
   | "calendar"
   | "projects"
+  | "projectDetail"
   | "tasks"
   | "clipboard"
   | "trash"
@@ -65,6 +66,18 @@ type Project = {
   category: CategoryName;
   completed: boolean;
   progress: number;
+};
+
+type ProjectContentItem = {
+  id: string;
+  projectId: string;
+  itemType: "text" | "file";
+  content: string;
+  fileName: string;
+  filePath: string;
+  fileType: string;
+  fileSize: number;
+  createdAt: string;
 };
 
 type NewTask = Omit<Task, "id">;
@@ -151,6 +164,19 @@ const translations = {
 
     schedule: "日程",
     longTermPlans: "长期计划",
+    projectDetails: "项目详情",
+    projectContent: "项目内容",
+    addText: "添加文字",
+    addAttachment: "添加附件",
+    writeSomething: "写点什么...",
+    noProjectContent: "还没有项目内容",
+    textNote: "文字",
+    attachment: "附件",
+    openAttachment: "打开",
+    downloadAttachment: "下载",
+    uploading: "上传中...",
+    saveText: "保存文字",
+    backToProjects: "返回项目",
 
     everything: "全部",
     noTasks: "这里还没有任务",
@@ -257,6 +283,19 @@ const translations = {
 
     schedule: "Schedule",
     longTermPlans: "Long-term Plans",
+    projectDetails: "Project Details",
+    projectContent: "Project Content",
+    addText: "Add Text",
+    addAttachment: "Add Attachment",
+    writeSomething: "Write something...",
+    noProjectContent: "No project content yet",
+    textNote: "Text",
+    attachment: "Attachment",
+    openAttachment: "Open",
+    downloadAttachment: "Download",
+    uploading: "Uploading...",
+    saveText: "Save Text",
+    backToProjects: "Back to Projects",
 
     everything: "All",
     noTasks: "No tasks here yet",
@@ -364,6 +403,19 @@ const translations = {
 
     schedule: "Agenda",
     longTermPlans: "Planes a largo plazo",
+    projectDetails: "Detalles del proyecto",
+    projectContent: "Contenido del proyecto",
+    addText: "Añadir texto",
+    addAttachment: "Añadir archivo",
+    writeSomething: "Escribe algo...",
+    noProjectContent: "Todavía no hay contenido",
+    textNote: "Texto",
+    attachment: "Archivo",
+    openAttachment: "Abrir",
+    downloadAttachment: "Descargar",
+    uploading: "Subiendo...",
+    saveText: "Guardar texto",
+    backToProjects: "Volver a proyectos",
 
     everything: "Todo",
     noTasks: "Todavía no hay tareas",
@@ -473,6 +525,9 @@ export default function Home() {
 
   const [editingProject, setEditingProject] =
     useState<Project | null>(null);
+
+  const [selectedProjectId, setSelectedProjectId] =
+    useState<string | null>(null);
 
   const [mobileMoreOpen, setMobileMoreOpen] =
     useState(false);
@@ -1020,6 +1075,18 @@ export default function Home() {
     setCreateType("choose");
   };
 
+  const openProjectDetail = (project: Project) => {
+    setSelectedProjectId(project.id);
+    setPage("projectDetail");
+  };
+
+  const selectedProject =
+    selectedProjectId
+      ? projects.find(
+          (project) => project.id === selectedProjectId
+        ) ?? null
+      : null;
+
   const toggleTask = async (id: string) => {
     if (!user) return;
 
@@ -1476,6 +1543,7 @@ export default function Home() {
                 deleteProject={deleteProject}
                 editTask={setEditingTask}
                 editProject={setEditingProject}
+                openProject={openProjectDetail}
                 onCreate={openCreate}
                 onTasks={() =>
                   setPage("tasks")
@@ -1509,8 +1577,34 @@ export default function Home() {
                 }
                 deleteProject={deleteProject}
                 editProject={setEditingProject}
+                openProject={openProjectDetail}
                 onCreate={openCreate}
                 dark={isDark}
+              />
+            )}
+
+            {page === "projectDetail" && selectedProject && (
+              <ProjectDetailPage
+                t={t}
+                language={language}
+                project={selectedProject}
+                tasks={tasks.filter(
+                  (task) => task.projectId === selectedProject.id
+                )}
+                user={user}
+                dark={isDark}
+                onBack={() =>
+                  setPage("projects")
+                }
+                onEdit={() =>
+                  setEditingProject(selectedProject)
+                }
+                onDelete={() =>
+                  deleteProject(selectedProject.id).then(() => {
+                    setSelectedProjectId(null);
+                    setPage("projects");
+                  })
+                }
               />
             )}
 
@@ -1848,6 +1942,7 @@ function TodayPage({
   deleteProject,
   editTask,
   editProject,
+  openProject,
   onCreate,
   onTasks,
   onProjects,
@@ -1862,6 +1957,7 @@ function TodayPage({
   deleteProject: (id: string) => void | Promise<void>;
   editTask: (task: Task) => void;
   editProject: (project: Project) => void;
+  openProject: (project: Project) => void;
   onCreate: () => void;
   onTasks: () => void;
   onProjects: () => void;
@@ -2004,15 +2100,18 @@ function TodayPage({
                   >
                     <div className="min-w-0 flex-1">
                       <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <p
-                          className={`block text-base font-bold ${
+                        <button
+                          onClick={() =>
+                            openProject(project)
+                          }
+                          className={`block text-left text-base font-bold hover:underline ${
                             dark
                               ? "text-white"
                               : "text-slate-900"
                           }`}
                         >
                           {project.title || "Untitled Project"}
-                        </p>
+                        </button>
 
                         <span
                           className={`rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -2187,6 +2286,7 @@ function ProjectsPage({
   toggleProject,
   deleteProject,
   editProject,
+  openProject,
   onCreate,
   dark,
 }: {
@@ -2201,6 +2301,7 @@ function ProjectsPage({
     id: string
   ) => void | Promise<void>;
   editProject: (project: Project) => void;
+  openProject: (project: Project) => void;
   onCreate: () => void;
   dark: boolean;
 }) {
@@ -2237,9 +2338,14 @@ function ProjectsPage({
                     )}
                   </span>
 
-                  <h3 className="mt-4 text-lg font-semibold">
+                  <button
+                    onClick={() =>
+                      openProject(project)
+                    }
+                    className="mt-4 block text-left text-lg font-semibold hover:underline"
+                  >
                     {project.title}
-                  </h3>
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -2286,6 +2392,650 @@ function ProjectsPage({
             </Card>
           )
         )}
+      </div>
+    </>
+  );
+}
+
+function ProjectDetailPage({
+  t,
+  language,
+  project,
+  tasks,
+  user,
+  dark,
+  onBack,
+  onEdit,
+  onDelete,
+}: {
+  t: (typeof translations)[Language];
+  language: Language;
+  project: Project;
+  tasks: Task[];
+  user: User;
+  dark: boolean;
+  onBack: () => void;
+  onEdit: () => void;
+  onDelete: () => void | Promise<void>;
+}) {
+  const [items, setItems] =
+    useState<ProjectContentItem[]>([]);
+  const [loading, setLoading] =
+    useState(true);
+  const [textOpen, setTextOpen] =
+    useState(false);
+  const [textValue, setTextValue] =
+    useState("");
+  const [savingText, setSavingText] =
+    useState(false);
+  const [uploading, setUploading] =
+    useState(false);
+
+  const completedTasks =
+    tasks.filter((task) => task.completed).length;
+
+  const calculatedProgress =
+    tasks.length > 0
+      ? Math.round(
+          (completedTasks / tasks.length) * 100
+        )
+      : project.progress;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadItems = async () => {
+      setLoading(true);
+
+      const { data, error } = await supabase
+        .from("project_items")
+        .select("*")
+        .eq("project_id", project.id)
+        .eq("user_id", user.id)
+        .order("created_at", {
+          ascending: false,
+        });
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error(
+          "Failed to load project items:",
+          error
+        );
+        setLoading(false);
+        return;
+      }
+
+      setItems(
+        (data ?? []).map((item) => ({
+          id: item.id,
+          projectId: item.project_id,
+          itemType: item.item_type,
+          content: item.content ?? "",
+          fileName: item.file_name ?? "",
+          filePath: item.file_path ?? "",
+          fileType: item.file_type ?? "",
+          fileSize: Number(item.file_size ?? 0),
+          createdAt: item.created_at,
+        }))
+      );
+
+      setLoading(false);
+    };
+
+    loadItems();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [project.id, user.id]);
+
+  const addText = async () => {
+    const content = textValue.trim();
+
+    if (!content || savingText) {
+      return;
+    }
+
+    setSavingText(true);
+
+    const { data, error } = await supabase
+      .from("project_items")
+      .insert({
+        project_id: project.id,
+        user_id: user.id,
+        item_type: "text",
+        content,
+      })
+      .select()
+      .single();
+
+    setSavingText(false);
+
+    if (error) {
+      console.error(
+        "Failed to add project text:",
+        error
+      );
+      alert(error.message);
+      return;
+    }
+
+    setItems((current) => [
+      {
+        id: data.id,
+        projectId: data.project_id,
+        itemType: "text",
+        content: data.content ?? "",
+        fileName: "",
+        filePath: "",
+        fileType: "",
+        fileSize: 0,
+        createdAt: data.created_at,
+      },
+      ...current,
+    ]);
+
+    setTextValue("");
+    setTextOpen(false);
+  };
+
+  const uploadAttachment = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file =
+      event.target.files?.[0];
+
+    event.target.value = "";
+
+    if (!file || uploading) {
+      return;
+    }
+
+    setUploading(true);
+
+    const safeName = file.name
+      .replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    const path =
+      `${user.id}/${project.id}/${crypto.randomUUID()}-${safeName}`;
+
+    const { error: uploadError } =
+      await supabase.storage
+        .from("project-files")
+        .upload(path, file, {
+          upsert: false,
+          contentType:
+            file.type ||
+            "application/octet-stream",
+        });
+
+    if (uploadError) {
+      setUploading(false);
+      console.error(
+        "Failed to upload attachment:",
+        uploadError
+      );
+      alert(uploadError.message);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("project_items")
+      .insert({
+        project_id: project.id,
+        user_id: user.id,
+        item_type: "file",
+        file_name: file.name,
+        file_path: path,
+        file_type:
+          file.type ||
+          "application/octet-stream",
+        file_size: file.size,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      await supabase.storage
+        .from("project-files")
+        .remove([path]);
+
+      setUploading(false);
+      console.error(
+        "Failed to save attachment metadata:",
+        error
+      );
+      alert(error.message);
+      return;
+    }
+
+    setItems((current) => [
+      {
+        id: data.id,
+        projectId: data.project_id,
+        itemType: "file",
+        content: "",
+        fileName: data.file_name ?? file.name,
+        filePath: data.file_path ?? path,
+        fileType:
+          data.file_type ??
+          file.type ??
+          "",
+        fileSize:
+          Number(
+            data.file_size ??
+              file.size
+          ),
+        createdAt: data.created_at,
+      },
+      ...current,
+    ]);
+
+    setUploading(false);
+  };
+
+  const openFile = async (
+    item: ProjectContentItem,
+    download: boolean
+  ) => {
+    const { data, error } =
+      await supabase.storage
+        .from("project-files")
+        .createSignedUrl(
+          item.filePath,
+          60,
+          download
+            ? {
+                download:
+                  item.fileName || true,
+              }
+            : undefined
+        );
+
+    if (error) {
+      console.error(
+        "Failed to open attachment:",
+        error
+      );
+      alert(error.message);
+      return;
+    }
+
+    window.open(
+      data.signedUrl,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
+
+  const deleteItem = async (
+    item: ProjectContentItem
+  ) => {
+    if (item.itemType === "file" && item.filePath) {
+      const { error: storageError } =
+        await supabase.storage
+          .from("project-files")
+          .remove([item.filePath]);
+
+      if (storageError) {
+        console.error(
+          "Failed to remove project file:",
+          storageError
+        );
+        alert(storageError.message);
+        return;
+      }
+    }
+
+    const { error } = await supabase
+      .from("project_items")
+      .delete()
+      .eq("id", item.id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error(
+        "Failed to delete project item:",
+        error
+      );
+      alert(error.message);
+      return;
+    }
+
+    setItems((current) =>
+      current.filter(
+        (currentItem) =>
+          currentItem.id !== item.id
+      )
+    );
+  };
+
+  return (
+    <>
+      <header className="mb-8">
+        <button
+          onClick={onBack}
+          className="mb-5 text-sm font-medium text-slate-400 hover:text-slate-600"
+        >
+          ← {t.backToProjects}
+        </button>
+
+        <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
+          <div className="min-w-0">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                  categoryStyles[project.category].bg
+                } ${
+                  categoryStyles[project.category].text
+                }`}
+              >
+                {getCategoryName(
+                  project.category,
+                  t
+                )}
+              </span>
+
+              <span className="text-xs text-slate-400">
+                {formatDateRange(
+                  project.startDate,
+                  project.endDate,
+                  language
+                )}
+              </span>
+            </div>
+
+            <h2 className="text-3xl font-bold md:text-4xl">
+              {project.title}
+            </h2>
+
+            {project.description && (
+              <p className="mt-3 max-w-3xl whitespace-pre-wrap text-sm leading-6 text-slate-400">
+                {project.description}
+              </p>
+            )}
+          </div>
+
+          <div className="flex shrink-0 gap-2">
+            <button
+              onClick={onEdit}
+              className={`rounded-2xl border px-4 py-2.5 text-sm font-medium ${
+                dark
+                  ? "border-slate-700 hover:bg-slate-800"
+                  : "border-slate-200 hover:bg-white"
+              }`}
+            >
+              ✎ {t.edit}
+            </button>
+
+            <button
+              onClick={onDelete}
+              className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-100"
+            >
+              × {t.delete}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_0.38fr]">
+        <div className="space-y-6">
+          <Card dark={dark}>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-semibold">
+                  {t.projectContent}
+                </h3>
+
+                <p className="mt-1 text-sm text-slate-400">
+                  {items.length}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() =>
+                    setTextOpen(
+                      (current) => !current
+                    )
+                  }
+                  className="rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-200"
+                >
+                  + {t.addText}
+                </button>
+
+                <label className="cursor-pointer rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700">
+                  {uploading
+                    ? t.uploading
+                    : `+ ${t.addAttachment}`}
+
+                  <input
+                    type="file"
+                    disabled={uploading}
+                    onChange={uploadAttachment}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {textOpen && (
+              <div className="mb-6 rounded-2xl border border-slate-200 p-4">
+                <textarea
+                  autoFocus
+                  value={textValue}
+                  onChange={(event) =>
+                    setTextValue(
+                      event.target.value
+                    )
+                  }
+                  placeholder={t.writeSomething}
+                  className={`min-h-32 w-full resize-y bg-transparent outline-none ${
+                    dark
+                      ? "text-white"
+                      : "text-slate-800"
+                  }`}
+                />
+
+                <div className="mt-3 flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      setTextOpen(false);
+                      setTextValue("");
+                    }}
+                    className="rounded-xl px-4 py-2 text-sm text-slate-400"
+                  >
+                    {t.cancel}
+                  </button>
+
+                  <button
+                    onClick={addText}
+                    disabled={
+                      !textValue.trim() ||
+                      savingText
+                    }
+                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-30"
+                  >
+                    {t.saveText}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {loading ? (
+              <p className="py-10 text-center text-sm text-slate-400">
+                Loading...
+              </p>
+            ) : items.length === 0 ? (
+              <EmptyState
+                text={t.noProjectContent}
+              />
+            ) : (
+              <div className="space-y-3">
+                {items.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`rounded-2xl border p-4 ${
+                      dark
+                        ? "border-slate-700"
+                        : "border-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-slate-400">
+                          {item.itemType === "text"
+                            ? `📝 ${t.textNote}`
+                            : `📎 ${t.attachment}`}
+                        </p>
+
+                        {item.itemType === "text" ? (
+                          <p className="mt-3 whitespace-pre-wrap text-sm leading-6">
+                            {item.content}
+                          </p>
+                        ) : (
+                          <div className="mt-3">
+                            <p className="truncate font-medium">
+                              {item.fileName}
+                            </p>
+
+                            <p className="mt-1 text-xs text-slate-400">
+                              {formatFileSize(
+                                item.fileSize
+                              )}
+                              {item.fileType
+                                ? ` · ${item.fileType}`
+                                : ""}
+                            </p>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button
+                                onClick={() =>
+                                  openFile(
+                                    item,
+                                    false
+                                  )
+                                }
+                                className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700"
+                              >
+                                {t.openAttachment}
+                              </button>
+
+                              <button
+                                onClick={() =>
+                                  openFile(
+                                    item,
+                                    true
+                                  )
+                                }
+                                className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700"
+                              >
+                                {t.downloadAttachment}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        <p className="mt-3 text-[11px] text-slate-400">
+                          {formatProjectItemDate(
+                            item.createdAt,
+                            language
+                          )}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() =>
+                          deleteItem(item)
+                        }
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-lg text-slate-400 hover:bg-red-50 hover:text-red-500"
+                        title={t.delete}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card dark={dark}>
+            <div className="mb-4 flex items-end justify-between">
+              <div>
+                <p className="text-sm text-slate-400">
+                  {t.todayProgress}
+                </p>
+
+                <p className="mt-1 text-3xl font-bold">
+                  {calculatedProgress}%
+                </p>
+              </div>
+
+              <p className="text-sm text-slate-400">
+                {completedTasks}/{tasks.length}
+              </p>
+            </div>
+
+            <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-slate-900"
+                style={{
+                  width: `${calculatedProgress}%`,
+                }}
+              />
+            </div>
+          </Card>
+
+          <Card dark={dark}>
+            <h3 className="mb-4 text-lg font-semibold">
+              {t.subTasks}
+            </h3>
+
+            {tasks.length === 0 ? (
+              <p className="text-sm text-slate-400">
+                {t.noSubTasks}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {tasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-3"
+                  >
+                    <div
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                        task.completed
+                          ? "border-slate-900 bg-slate-900 text-xs text-white"
+                          : "border-slate-300"
+                      }`}
+                    >
+                      {task.completed
+                        ? "✓"
+                        : ""}
+                    </div>
+
+                    <div className="min-w-0">
+                      <p
+                        className={`truncate text-sm ${
+                          task.completed
+                            ? "text-slate-400 line-through"
+                            : ""
+                        }`}
+                      >
+                        {task.title}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
     </>
   );
@@ -4602,6 +5352,63 @@ function getWeekdayLabels(
   }
 
   return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+}
+
+function formatFileSize(bytes: number) {
+  if (!bytes) {
+    return "0 B";
+  }
+
+  const units = [
+    "B",
+    "KB",
+    "MB",
+    "GB",
+  ];
+
+  const index = Math.min(
+    Math.floor(
+      Math.log(bytes) /
+        Math.log(1024)
+    ),
+    units.length - 1
+  );
+
+  const value =
+    bytes /
+    Math.pow(
+      1024,
+      index
+    );
+
+  return `${value.toFixed(
+    index === 0 ? 0 : 1
+  )} ${units[index]}`;
+}
+
+function formatProjectItemDate(
+  value: string,
+  language: Language
+) {
+  const locale =
+    language === "zh"
+      ? "zh-CN"
+      : language === "es"
+        ? "es-ES"
+        : "en-US";
+
+  return new Intl.DateTimeFormat(
+    locale,
+    {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }
+  ).format(
+    new Date(value)
+  );
 }
 
 function formatDateRange(
