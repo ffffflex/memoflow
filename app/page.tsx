@@ -567,6 +567,8 @@ export default function Home() {
           allDay: task.all_day ?? false,
           category: task.category as CategoryName,
           completed: task.completed ?? false,
+          completedAt: task.completed_at ?? null,
+          taskType: (task.task_type ?? "multi_day") as TaskType,
           projectId: task.project_id ?? null,
           deletedAt: task.deleted_at ?? null,
         }));
