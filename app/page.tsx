@@ -464,6 +464,9 @@ export default function Home() {
   const [editingProject, setEditingProject] =
     useState<Project | null>(null);
 
+  const [mobileMoreOpen, setMobileMoreOpen] =
+    useState(false);
+
   const t = translations[language];
 
   useEffect(() => {
@@ -1243,14 +1246,21 @@ export default function Home() {
   const permanentlyDeleteTask = async (id: string) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from("tasks")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
+    const { data, error } = await supabase.rpc(
+      "delete_own_task",
+      {
+        p_task_id: id,
+      }
+    );
 
     if (error) {
       console.error("Failed to permanently delete task:", error);
+      alert(`Delete failed: ${error.message}`);
+      return;
+    }
+
+    if (!data) {
+      alert("永久删除失败：没有找到属于当前账号的这条任务。");
       return;
     }
 
@@ -1262,14 +1272,21 @@ export default function Home() {
   const permanentlyDeleteProject = async (id: string) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from("projects")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
+    const { data, error } = await supabase.rpc(
+      "delete_own_project",
+      {
+        p_project_id: id,
+      }
+    );
 
     if (error) {
       console.error("Failed to permanently delete project:", error);
+      alert(`Delete failed: ${error.message}`);
+      return;
+    }
+
+    if (!data) {
+      alert("永久删除失败：没有找到属于当前账号的这个项目。");
       return;
     }
 
@@ -1560,13 +1577,107 @@ export default function Home() {
         />
 
         <MobileButton
-          label={t.settings}
-          active={page === "settings"}
+          label={
+            language === "zh"
+              ? "更多"
+              : language === "es"
+                ? "Más"
+                : "More"
+          }
+          active={
+            page === "tasks" ||
+            page === "clipboard" ||
+            page === "trash" ||
+            page === "settings"
+          }
           onClick={() =>
-            setPage("settings")
+            setMobileMoreOpen(true)
           }
         />
       </nav>
+
+      {mobileMoreOpen && (
+        <div
+          onMouseDown={() =>
+            setMobileMoreOpen(false)
+          }
+          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
+        >
+          <div
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+            className={`absolute bottom-0 left-0 right-0 rounded-t-[32px] p-5 shadow-2xl ${
+              isDark
+                ? "bg-slate-900 text-white"
+                : "bg-white text-slate-900"
+            }`}
+          >
+            <div className="mx-auto mb-5 h-1.5 w-12 rounded-full bg-slate-300" />
+
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold">
+                {language === "zh"
+                  ? "更多"
+                  : language === "es"
+                    ? "Más"
+                    : "More"}
+              </h3>
+
+              <button
+                onClick={() =>
+                  setMobileMoreOpen(false)
+                }
+                className={`flex h-9 w-9 items-center justify-center rounded-full text-lg ${
+                  isDark
+                    ? "bg-slate-800"
+                    : "bg-slate-100"
+                }`}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <MobileMoreItem
+                label={t.allTasks}
+                onClick={() => {
+                  setPage("tasks");
+                  setMobileMoreOpen(false);
+                }}
+                dark={isDark}
+              />
+
+              <MobileMoreItem
+                label={t.clipboard}
+                onClick={() => {
+                  setPage("clipboard");
+                  setMobileMoreOpen(false);
+                }}
+                dark={isDark}
+              />
+
+              <MobileMoreItem
+                label={t.trash}
+                onClick={() => {
+                  setPage("trash");
+                  setMobileMoreOpen(false);
+                }}
+                dark={isDark}
+              />
+
+              <MobileMoreItem
+                label={t.settings}
+                onClick={() => {
+                  setPage("settings");
+                  setMobileMoreOpen(false);
+                }}
+                dark={isDark}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {createOpen && (
         <CreateModal
@@ -4142,6 +4253,30 @@ function MobileButton({
       }`}
     >
       {label}
+    </button>
+  );
+}
+
+function MobileMoreItem({
+  label,
+  onClick,
+  dark,
+}: {
+  label: string;
+  onClick: () => void;
+  dark: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-sm font-medium transition ${
+        dark
+          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
+          : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+      }`}
+    >
+      <span>{label}</span>
+      <span className="text-slate-400">›</span>
     </button>
   );
 }
