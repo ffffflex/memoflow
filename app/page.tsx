@@ -109,7 +109,7 @@ const translations = {
     newProject: "新建项目",
     chooseCreateType: "你想创建什么？",
 
-    taskDescription: "创建单日或跨多天的任务",
+    taskDescription: "创建多天或长期的任务",
     projectDescription: "创建有开始和结束日期的长期项目",
 
     taskName: "任务名称",
