@@ -109,7 +109,7 @@ const translations = {
     newProject: "新建项目",
     chooseCreateType: "你想创建什么？",
 
-    taskDescription: "创建多天或长期的任务",
+    taskDescription: "创建单日或跨多天的任务",
     projectDescription: "创建有开始和结束日期的长期项目",
 
     taskName: "任务名称",
@@ -2003,15 +2003,30 @@ function TodayPage({
                     className="flex items-start gap-3"
                   >
                     <div className="min-w-0 flex-1">
-                      <p
-                        className={`mb-2 block text-base font-bold ${
-                          dark
-                            ? "text-white"
-                            : "text-slate-900"
-                        }`}
-                      >
-                        {project.title || "Untitled Project"}
-                      </p>
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <p
+                          className={`block text-base font-bold ${
+                            dark
+                              ? "text-white"
+                              : "text-slate-900"
+                          }`}
+                        >
+                          {project.title || "Untitled Project"}
+                        </p>
+
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                            categoryStyles[project.category].bg
+                          } ${
+                            categoryStyles[project.category].text
+                          }`}
+                        >
+                          {getCategoryName(
+                            project.category,
+                            t
+                          )}
+                        </span>
+                      </div>
 
                       <div className="mb-3 flex items-center justify-between gap-3">
                         <p className="text-xs text-slate-400">
@@ -2209,8 +2224,17 @@ function ProjectsPage({
             >
               <div className="mb-5 flex items-start justify-between">
                 <div>
-                  <span className="rounded-full bg-purple-100 px-3 py-1 text-xs text-purple-700">
-                    {t.project}
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      categoryStyles[project.category].bg
+                    } ${
+                      categoryStyles[project.category].text
+                    }`}
+                  >
+                    {getCategoryName(
+                      project.category,
+                      t
+                    )}
                   </span>
 
                   <h3 className="mt-4 text-lg font-semibold">
@@ -4213,43 +4237,40 @@ function DynamicCalendar({
               </div>
 
               <div className="space-y-1">
-                {dayProjects
-                  .slice(0, 2)
-                  .map((project) => (
+                {dayProjects.map((project) => {
+                  const style =
+                    categoryStyles[
+                      project.category
+                    ];
+
+                  return (
                     <div
                       key={`project-${project.id}`}
-                      className="truncate rounded-md bg-purple-100 px-2 py-1 text-[10px] font-medium text-purple-700"
+                      className={`truncate rounded-md px-2 py-1 text-[10px] font-medium ${style.bg} ${style.text}`}
                       title={project.title}
                     >
-                      {project.title}
+                      ◇ {project.title}
                     </div>
-                  ))}
+                  );
+                })}
 
-                {dayTasks
-                  .slice(0, 3)
-                  .map((task) => {
-                    const style =
-                      categoryStyles[
-                        task.category
-                      ];
+                {dayTasks.map((task) => {
+                  const style =
+                    categoryStyles[
+                      task.category
+                    ];
 
-                    return (
-                      <div
-                        key={`task-${task.id}`}
-                        className={`truncate rounded-md px-2 py-1 text-[10px] ${style.bg} ${style.text}`}
-                        title={task.title}
-                      >
-                        {task.completed ? "✓ " : ""}
-                        {task.title}
-                      </div>
-                    );
-                  })}
-
-                {dayProjects.length + dayTasks.length > 5 && (
-                  <p className="px-1 text-[10px] text-slate-400">
-                    +{dayProjects.length + dayTasks.length - 5}
-                  </p>
-                )}
+                  return (
+                    <div
+                      key={`task-${task.id}`}
+                      className={`truncate rounded-md px-2 py-1 text-[10px] ${style.bg} ${style.text}`}
+                      title={task.title}
+                    >
+                      {task.completed ? "✓ " : ""}
+                      {task.title}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );
