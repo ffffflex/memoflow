@@ -2897,7 +2897,14 @@ function ProjectDetailPage({
                           </p>
                         ) : (
                           <div className="mt-3">
-                            <p className="truncate font-medium">
+                            {item.fileType.startsWith("image/") && (
+                              <ProjectImagePreview
+                                filePath={item.filePath}
+                                fileName={item.fileName}
+                              />
+                            )}
+
+                            <p className="mt-3 truncate font-medium">
                               {item.fileName}
                             </p>
 
@@ -3038,6 +3045,93 @@ function ProjectDetailPage({
         </div>
       </div>
     </>
+  );
+}
+
+function ProjectImagePreview({
+  filePath,
+  fileName,
+}: {
+  filePath: string;
+  fileName: string;
+}) {
+  const [url, setUrl] =
+    useState<string | null>(null);
+
+  const [failed, setFailed] =
+    useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPreview = async () => {
+      const { data, error } =
+        await supabase.storage
+          .from("project-files")
+          .createSignedUrl(
+            filePath,
+            60 * 60
+          );
+
+      if (cancelled) {
+        return;
+      }
+
+      if (error) {
+        console.error(
+          "Failed to load image preview:",
+          error
+        );
+        setFailed(true);
+        return;
+      }
+
+      setUrl(data.signedUrl);
+    };
+
+    loadPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filePath]);
+
+  if (failed) {
+    return (
+      <div className="flex min-h-32 items-center justify-center rounded-2xl bg-slate-100 px-4 py-8 text-center text-xs text-slate-400">
+        Image preview unavailable
+      </div>
+    );
+  }
+
+  if (!url) {
+    return (
+      <div className="flex min-h-32 animate-pulse items-center justify-center rounded-2xl bg-slate-100 text-xs text-slate-400">
+        Loading image...
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        window.open(
+          url,
+          "_blank",
+          "noopener,noreferrer"
+        )
+      }
+      className="block w-full overflow-hidden rounded-2xl bg-slate-100"
+      title={fileName}
+    >
+      <img
+        src={url}
+        alt={fileName}
+        className="max-h-[520px] w-full object-contain"
+        loading="lazy"
+      />
+    </button>
   );
 }
 
