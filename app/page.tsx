@@ -1050,18 +1050,31 @@ export default function Home() {
 
   const todayTasks = useMemo(() => {
     return tasks.filter((task) => {
+      // A task completed today remains in Today's list so that
+      // Today's progress can correctly show values such as 1/3.
+      // Tasks completed on an earlier day do not carry into today.
       if (task.taskType === "long_term") {
-        return (
-          !task.completed &&
-          task.startDate <= TODAY
-        );
+        if (task.completed) {
+          return task.completedAt === TODAY;
+        }
+
+        return task.startDate <= TODAY;
       }
 
-      return (
+      const scheduledToday =
         task.startDate <= TODAY &&
         !!task.endDate &&
-        task.endDate >= TODAY
-      );
+        task.endDate >= TODAY;
+
+      if (!scheduledToday) {
+        return false;
+      }
+
+      if (task.completed) {
+        return task.completedAt === TODAY;
+      }
+
+      return true;
     });
   }, [tasks]);
 
@@ -3160,12 +3173,17 @@ function CalendarPage({
       />
 
       <Card dark={dark}>
-        <DynamicCalendar
-          tasks={tasks}
-          projects={projects}
-          language={language}
-          dark={dark}
-        />
+        <div
+          className="max-h-[calc(100vh-210px)] overflow-y-scroll overscroll-contain pr-2"
+          style={{ scrollbarGutter: "stable" }}
+        >
+          <DynamicCalendar
+            tasks={tasks}
+            projects={projects}
+            language={language}
+            dark={dark}
+          />
+        </div>
       </Card>
     </>
   );
@@ -3192,9 +3210,26 @@ function ClipboardPage({
       return;
     }
 
-    await navigator.clipboard.writeText(
-      clipboardText
-    );
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(
+          clipboardText
+        );
+      } else {
+        throw new Error("Clipboard API unavailable");
+      }
+    } catch {
+      // Fallback for Safari/PWA or browsers that block Clipboard API.
+      const helper = document.createElement("textarea");
+      helper.value = clipboardText;
+      helper.setAttribute("readonly", "");
+      helper.style.position = "fixed";
+      helper.style.opacity = "0";
+      document.body.appendChild(helper);
+      helper.select();
+      document.execCommand("copy");
+      document.body.removeChild(helper);
+    }
 
     setCopied(true);
 
@@ -3222,7 +3257,7 @@ function ClipboardPage({
             )
           }
           placeholder={t.pasteHere}
-          className={`min-h-[550px] w-full resize-none bg-transparent outline-none ${
+          className={`h-[55vh] min-h-[360px] w-full resize-none overflow-y-auto bg-transparent outline-none ${
             dark
               ? "text-white"
               : "text-slate-700"
@@ -3606,7 +3641,8 @@ function CreateModal({
         onMouseDown={(event) =>
           event.stopPropagation()
         }
-        className="w-full rounded-t-[32px] bg-white p-6 text-slate-900 shadow-2xl sm:max-w-lg sm:rounded-[32px]"
+        className="max-h-[88vh] w-full overflow-y-scroll overscroll-contain rounded-t-[32px] bg-white p-6 text-slate-900 shadow-2xl sm:max-w-lg sm:rounded-[32px]"
+        style={{ scrollbarGutter: "stable" }}
       >
         {type === "choose" && (
           <>
@@ -4150,7 +4186,8 @@ function EditTaskModal({
         onMouseDown={(event) =>
           event.stopPropagation()
         }
-        className="max-h-[92vh] w-full overflow-y-auto rounded-t-[32px] bg-white p-6 text-slate-900 shadow-2xl sm:max-w-lg sm:rounded-[32px]"
+        className="max-h-[88vh] w-full overflow-y-scroll overscroll-contain rounded-t-[32px] bg-white p-6 text-slate-900 shadow-2xl sm:max-w-lg sm:rounded-[32px]"
+        style={{ scrollbarGutter: "stable" }}
       >
         <div className="mb-6 flex items-center justify-between">
           <h3 className="text-2xl font-bold">
@@ -4397,7 +4434,8 @@ function EditProjectModal({
         onMouseDown={(event) =>
           event.stopPropagation()
         }
-        className="max-h-[92vh] w-full overflow-y-auto rounded-t-[32px] bg-white p-6 text-slate-900 shadow-2xl sm:max-w-lg sm:rounded-[32px]"
+        className="max-h-[88vh] w-full overflow-y-scroll overscroll-contain rounded-t-[32px] bg-white p-6 text-slate-900 shadow-2xl sm:max-w-lg sm:rounded-[32px]"
+        style={{ scrollbarGutter: "stable" }}
       >
         <div className="mb-6 flex items-center justify-between">
           <h3 className="text-2xl font-bold">
