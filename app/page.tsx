@@ -11,6 +11,8 @@ import {
 import type { User } from "@supabase/supabase-js";
 
 import AuthPage from "@/components/AuthPage";
+import LeetCodeCard, { type LeetCodeProblem } from "@/components/LeetCodeCard";
+import MemosPage, { type Memo } from "@/components/MemosPage";
 import { supabase } from "@/lib/supabase";
 
 type Language = "zh" | "en" | "es";
@@ -29,6 +31,7 @@ type Page =
   | "projects"
   | "projectDetail"
   | "tasks"
+  | "memos"
   | "clipboard"
   | "trash"
   | "settings";
@@ -83,6 +86,12 @@ type ProjectContentItem = {
 type NewTask = Omit<Task, "id">;
 type NewProject = Omit<Project, "id">;
 
+type RealtimePayload = {
+  eventType: "INSERT" | "UPDATE" | "DELETE";
+  new: Record<string, unknown>;
+  old: Record<string, unknown>;
+};
+
 const TODAY = getLocalDateString(new Date());
 
 const translations = {
@@ -91,6 +100,7 @@ const translations = {
     calendar: "日历",
     projects: "项目",
     allTasks: "所有任务",
+    memos: "备忘录",
     clipboard: "剪切板",
     trash: "回收站",
     restore: "恢复",
@@ -188,6 +198,31 @@ const translations = {
     clear: "清空",
     copy: "复制",
     copied: "已复制",
+    memosDescription: "保存需要长期保留的文字。",
+    newMemo: "新建备忘录",
+    memoTitle: "标题",
+    memoContent: "内容",
+    noMemos: "还没有备忘录",
+    save: "保存",
+    todaysLeetCode: "今日刷题",
+    addProblem: "添加题目",
+    viewProgress: "查看进度",
+    problemNumber: "题号",
+    title: "标题",
+    difficulty: "难度",
+    topic: "主题",
+    plannedDate: "计划日期",
+    easy: "简单",
+    medium: "中等",
+    hard: "困难",
+    todayCompleted: "今日完成",
+    weekCompleted: "本周完成",
+    totalCompleted: "总完成",
+    streak: "连续刷题",
+    days: "天",
+    topicBreakdown: "主题统计",
+    noProblemsToday: "今天还没有安排题目",
+    clipboardClearFailed: "清空失败，请检查网络后重试。",
 
     preferences: "偏好设置",
     language: "语言",
@@ -210,6 +245,7 @@ const translations = {
     calendar: "Calendar",
     projects: "Projects",
     allTasks: "All Tasks",
+    memos: "Memos",
     clipboard: "Clipboard",
     trash: "Trash",
     restore: "Restore",
@@ -307,6 +343,31 @@ const translations = {
     clear: "Clear",
     copy: "Copy",
     copied: "Copied",
+    memosDescription: "Keep text you want to save for later.",
+    newMemo: "New Memo",
+    memoTitle: "Title",
+    memoContent: "Content",
+    noMemos: "No memos yet",
+    save: "Save",
+    todaysLeetCode: "Today's LeetCode",
+    addProblem: "Add Problem",
+    viewProgress: "View Progress",
+    problemNumber: "Problem Number",
+    title: "Title",
+    difficulty: "Difficulty",
+    topic: "Topic",
+    plannedDate: "Planned Date",
+    easy: "Easy",
+    medium: "Medium",
+    hard: "Hard",
+    todayCompleted: "Completed Today",
+    weekCompleted: "Completed This Week",
+    totalCompleted: "Total Completed",
+    streak: "Current Streak",
+    days: "days",
+    topicBreakdown: "Topic Breakdown",
+    noProblemsToday: "No problems planned today",
+    clipboardClearFailed: "Clear failed. Check your connection and try again.",
 
     preferences: "Preferences",
     language: "Language",
@@ -329,6 +390,7 @@ const translations = {
     calendar: "Calendario",
     projects: "Proyectos",
     allTasks: "Todas las tareas",
+    memos: "Notas",
     clipboard: "Portapapeles",
     trash: "Papelera",
     restore: "Restaurar",
@@ -428,6 +490,31 @@ const translations = {
     clear: "Limpiar",
     copy: "Copiar",
     copied: "Copiado",
+    memosDescription: "Guarda texto que quieras conservar.",
+    newMemo: "Nueva nota",
+    memoTitle: "Título",
+    memoContent: "Contenido",
+    noMemos: "Todavía no hay notas",
+    save: "Guardar",
+    todaysLeetCode: "LeetCode de hoy",
+    addProblem: "Añadir problema",
+    viewProgress: "Ver progreso",
+    problemNumber: "Número del problema",
+    title: "Título",
+    difficulty: "Dificultad",
+    topic: "Tema",
+    plannedDate: "Fecha prevista",
+    easy: "Fácil",
+    medium: "Medio",
+    hard: "Difícil",
+    todayCompleted: "Completados hoy",
+    weekCompleted: "Completados esta semana",
+    totalCompleted: "Total completados",
+    streak: "Racha actual",
+    days: "días",
+    topicBreakdown: "Desglose por tema",
+    noProblemsToday: "No hay problemas previstos para hoy",
+    clipboardClearFailed: "No se pudo limpiar. Comprueba la conexión e inténtalo de nuevo.",
 
     preferences: "Preferencias",
     language: "Idioma",
@@ -506,11 +593,16 @@ export default function Home() {
   const [clipboardText, setClipboardText] =
     useState("");
 
+  const [memos, setMemos] = useState<Memo[]>([]);
+  const [leetcodeProblems, setLeetcodeProblems] = useState<LeetCodeProblem[]>([]);
+
   const [cloudDataReady, setCloudDataReady] =
     useState(false);
 
   const clipboardSaveTimer =
     useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clipboardVersion = useRef("");
+  const skipNextClipboardSave = useRef(false);
 
   const [createOpen, setCreateOpen] =
     useState(false);
@@ -562,11 +654,15 @@ export default function Home() {
 
   useEffect(() => {
     if (!user) {
+      // Reset all account-scoped state immediately when the auth session ends.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTasks([]);
       setProjects([]);
       setTrashedTasks([]);
       setTrashedProjects([]);
       setClipboardText("");
+      setMemos([]);
+      setLeetcodeProblems([]);
       setLanguage("zh");
       setTheme("default");
       setCloudDataReady(false);
@@ -583,6 +679,8 @@ export default function Home() {
         projectsResult,
         preferencesResult,
         clipboardResult,
+        memosResult,
+        leetcodeResult,
       ] = await Promise.all([
         supabase
           .from("tasks")
@@ -605,6 +703,18 @@ export default function Home() {
           .select("*")
           .eq("user_id", user.id)
           .maybeSingle(),
+
+        supabase
+          .from("memos")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("updated_at", { ascending: false }),
+
+        supabase
+          .from("leetcode_problems")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("planned_date", { ascending: false }),
       ]);
 
       if (cancelled) return;
@@ -704,6 +814,7 @@ export default function Home() {
           clipboardResult.error
         );
       } else if (clipboardResult.data) {
+        clipboardVersion.current = clipboardResult.data.updated_at ?? "";
         setClipboardText(
           clipboardResult.data.content ?? ""
         );
@@ -723,6 +834,18 @@ export default function Home() {
         }
       }
 
+      if (memosResult.error) {
+        console.error("Failed to load memos:", memosResult.error);
+      } else {
+        setMemos((memosResult.data ?? []).map(mapMemoRow));
+      }
+
+      if (leetcodeResult.error) {
+        console.error("Failed to load LeetCode problems:", leetcodeResult.error);
+      } else {
+        setLeetcodeProblems((leetcodeResult.data ?? []).map(mapLeetCodeRow));
+      }
+
       if (!cancelled) {
         setCloudDataReady(true);
       }
@@ -740,23 +863,23 @@ export default function Home() {
       return;
     }
 
+    if (skipNextClipboardSave.current) {
+      skipNextClipboardSave.current = false;
+      return;
+    }
+
     if (clipboardSaveTimer.current) {
       clearTimeout(clipboardSaveTimer.current);
     }
 
     clipboardSaveTimer.current = setTimeout(async () => {
+      const writeVersion = new Date().toISOString();
+      clipboardVersion.current = writeVersion;
       const { error } = await supabase
         .from("clipboards")
-        .upsert(
-          {
-            user_id: user.id,
-            content: clipboardText,
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: "user_id",
-          }
-        );
+        .update({ content: clipboardText, updated_at: writeVersion })
+        .eq("user_id", user.id)
+        .lte("updated_at", writeVersion);
 
       if (error) {
         console.error(
@@ -837,34 +960,34 @@ export default function Home() {
       return;
     }
 
-    const mapTask = (row: Record<string, any>): Task => ({
-      id: row.id,
-      title: row.title,
-      description: row.description ?? "",
-      startDate: row.start_date,
-      endDate: row.end_date ?? null,
-      time: row.time ?? "",
-      allDay: row.all_day ?? false,
+    const mapTask = (row: Record<string, unknown>): Task => ({
+      id: String(row.id),
+      title: String(row.title ?? ""),
+      description: String(row.description ?? ""),
+      startDate: String(row.start_date ?? ""),
+      endDate: row.end_date ? String(row.end_date) : null,
+      time: String(row.time ?? ""),
+      allDay: Boolean(row.all_day),
       category: row.category as CategoryName,
-      completed: row.completed ?? false,
-      completedAt: row.completed_at ?? null,
+      completed: Boolean(row.completed),
+      completedAt: row.completed_at ? String(row.completed_at) : null,
       taskType: (row.task_type ?? "multi_day") as TaskType,
-      projectId: row.project_id ?? null,
+      projectId: row.project_id ? String(row.project_id) : null,
     });
 
-    const mapProject = (row: Record<string, any>): Project => ({
-      id: row.id,
-      title: row.title,
-      description: row.description ?? "",
-      startDate: row.start_date,
-      endDate: row.end_date,
+    const mapProject = (row: Record<string, unknown>): Project => ({
+      id: String(row.id),
+      title: String(row.title ?? ""),
+      description: String(row.description ?? ""),
+      startDate: String(row.start_date ?? ""),
+      endDate: String(row.end_date ?? ""),
       category: row.category as CategoryName,
-      completed: row.completed ?? false,
-      progress: row.progress ?? 0,
+      completed: Boolean(row.completed),
+      progress: Number(row.progress ?? 0),
     });
 
-    const handleTaskChange = (payload: any) => {
-      const row = payload.new as Record<string, any>;
+    const handleTaskChange = (payload: RealtimePayload) => {
+      const row = payload.new;
       const task = mapTask(row);
       const deleted = Boolean(row.deleted_at);
 
@@ -887,8 +1010,8 @@ export default function Home() {
       }
     };
 
-    const handleProjectChange = (payload: any) => {
-      const row = payload.new as Record<string, any>;
+    const handleProjectChange = (payload: RealtimePayload) => {
+      const row = payload.new;
       const project = mapProject(row);
       const deleted = Boolean(row.deleted_at);
 
@@ -911,13 +1034,38 @@ export default function Home() {
       }
     };
 
-    const handleClipboardChange = (payload: any) => {
-      const row = payload.new as Record<string, any>;
-      setClipboardText(row.content ?? "");
+    const handleClipboardChange = (payload: RealtimePayload) => {
+      const row = payload.new;
+      const incomingVersion = String(row.updated_at ?? "");
+      if (incomingVersion && incomingVersion < clipboardVersion.current) return;
+      clipboardVersion.current = incomingVersion;
+      setClipboardText(String(row.content ?? ""));
     };
 
-    const handlePreferencesChange = (payload: any) => {
-      const row = payload.new as Record<string, any>;
+    const handleMemoChange = (payload: RealtimePayload) => {
+      const row = (payload.new?.id ? payload.new : payload.old) as Record<string, unknown>;
+      const id = String(row.id);
+      if (payload.eventType === "DELETE") {
+        setMemos((current) => current.filter((memo) => memo.id !== id));
+        return;
+      }
+      const memo = mapMemoRow(row);
+      setMemos((current) => [memo, ...current.filter((item) => item.id !== memo.id)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+    };
+
+    const handleLeetCodeChange = (payload: RealtimePayload) => {
+      const row = (payload.new?.id ? payload.new : payload.old) as Record<string, unknown>;
+      const id = String(row.id);
+      if (payload.eventType === "DELETE") {
+        setLeetcodeProblems((current) => current.filter((problem) => problem.id !== id));
+        return;
+      }
+      const problem = mapLeetCodeRow(row);
+      setLeetcodeProblems((current) => [problem, ...current.filter((item) => item.id !== problem.id)]);
+    };
+
+    const handlePreferencesChange = (payload: RealtimePayload) => {
+      const row = payload.new;
 
       if (row.language) {
         setLanguage(row.language as Language);
@@ -987,6 +1135,11 @@ export default function Home() {
         },
         handleClipboardChange
       )
+
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "memos", filter: `user_id=eq.${user.id}` }, handleMemoChange)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "memos", filter: `user_id=eq.${user.id}` }, handleMemoChange)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "leetcode_problems", filter: `user_id=eq.${user.id}` }, handleLeetCodeChange)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "leetcode_problems", filter: `user_id=eq.${user.id}` }, handleLeetCodeChange)
       .on(
         "postgres_changes",
         {
@@ -1052,8 +1205,8 @@ export default function Home() {
     return tasks.filter((task) => {
       if (task.taskType === "long_term") {
         return (
-          !task.completed &&
-          task.startDate <= TODAY
+          task.startDate <= TODAY &&
+          (!task.completed || task.completedAt === TODAY)
         );
       }
 
@@ -1064,6 +1217,84 @@ export default function Home() {
       );
     });
   }, [tasks]);
+
+  const clearClipboard = async () => {
+    if (!user) return;
+    const previousText = clipboardText;
+    if (clipboardSaveTimer.current) {
+      clearTimeout(clipboardSaveTimer.current);
+      clipboardSaveTimer.current = null;
+    }
+    skipNextClipboardSave.current = clipboardText !== "";
+    const writeVersion = new Date().toISOString();
+    clipboardVersion.current = writeVersion;
+    setClipboardText("");
+
+    const { error } = await supabase
+      .from("clipboards")
+      .update({ content: "", updated_at: writeVersion })
+      .eq("user_id", user.id)
+      .lte("updated_at", writeVersion);
+
+    if (error) {
+      console.error("Failed to clear clipboard:", error);
+      clipboardVersion.current = "";
+      skipNextClipboardSave.current = true;
+      setClipboardText(previousText);
+      alert(t.clipboardClearFailed);
+    }
+  };
+
+  const createMemo = async (title: string, content: string) => {
+    if (!user) return false;
+    const { data, error } = await supabase.from("memos").insert({ user_id: user.id, title, content }).select().single();
+    if (error) { console.error("Failed to create memo:", error); alert(error.message); return false; }
+    const memo = mapMemoRow(data);
+    setMemos((current) => [memo, ...current.filter((item) => item.id !== memo.id)]);
+    return true;
+  };
+
+  const updateMemo = async (id: string, title: string, content: string) => {
+    if (!user) return false;
+    const updatedAt = new Date().toISOString();
+    const { data, error } = await supabase.from("memos").update({ title, content, updated_at: updatedAt }).eq("id", id).eq("user_id", user.id).select().single();
+    if (error) { console.error("Failed to update memo:", error); alert(error.message); return false; }
+    const memo = mapMemoRow(data);
+    setMemos((current) => [memo, ...current.filter((item) => item.id !== id)]);
+    return true;
+  };
+
+  const deleteMemo = async (id: string) => {
+    if (!user) return;
+    const { error } = await supabase.from("memos").delete().eq("id", id).eq("user_id", user.id);
+    if (error) { console.error("Failed to delete memo:", error); alert(error.message); return; }
+    setMemos((current) => current.filter((memo) => memo.id !== id));
+  };
+
+  const createLeetCodeProblem = async (problem: Omit<LeetCodeProblem, "id" | "completed" | "completedAt">) => {
+    if (!user) return false;
+    const { data, error } = await supabase.from("leetcode_problems").insert({
+      user_id: user.id,
+      problem_number: problem.problemNumber,
+      title: problem.title,
+      difficulty: problem.difficulty,
+      topic: problem.topic,
+      planned_date: problem.plannedDate,
+    }).select().single();
+    if (error) { console.error("Failed to create LeetCode problem:", error); alert(error.message); return false; }
+    const created = mapLeetCodeRow(data);
+    setLeetcodeProblems((current) => [created, ...current.filter((item) => item.id !== created.id)]);
+    return true;
+  };
+
+  const toggleLeetCodeProblem = async (problem: LeetCodeProblem) => {
+    if (!user) return;
+    const completed = !problem.completed;
+    const completedAt = completed ? new Date().toISOString() : null;
+    const { error } = await supabase.from("leetcode_problems").update({ completed, completed_at: completedAt, updated_at: new Date().toISOString() }).eq("id", problem.id).eq("user_id", user.id);
+    if (error) { console.error("Failed to update LeetCode problem:", error); alert(error.message); return; }
+    setLeetcodeProblems((current) => current.map((item) => item.id === problem.id ? { ...item, completed, completedAt } : item));
+  };
 
   const openCreate = () => {
     setCreateType("choose");
@@ -1430,7 +1661,7 @@ export default function Home() {
     >
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
         <aside
-          className={`hidden w-64 shrink-0 flex-col border-r p-6 lg:flex ${
+          className={`sticky top-0 hidden h-screen w-64 shrink-0 flex-col overflow-hidden border-r p-6 lg:flex ${
             isDark
               ? "border-slate-800 bg-slate-900"
               : "border-slate-200 bg-white"
@@ -1454,7 +1685,7 @@ export default function Home() {
             </div>
           </div>
 
-          <nav className="space-y-2">
+          <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto">
             <SidebarItem
               label={t.today}
               active={page === "today"}
@@ -1489,6 +1720,13 @@ export default function Home() {
               onClick={() =>
                 setPage("tasks")
               }
+            />
+
+            <SidebarItem
+              label={t.memos}
+              active={page === "memos"}
+              dark={isDark}
+              onClick={() => setPage("memos")}
             />
 
             <SidebarItem
@@ -1552,6 +1790,9 @@ export default function Home() {
                   setPage("projects")
                 }
                 dark={isDark}
+                leetcodeProblems={leetcodeProblems}
+                onCreateLeetCode={createLeetCodeProblem}
+                onToggleLeetCode={toggleLeetCodeProblem}
               />
             )}
 
@@ -1630,7 +1871,20 @@ export default function Home() {
                 setClipboardText={
                   setClipboardText
                 }
+                clearClipboard={clearClipboard}
                 dark={isDark}
+              />
+            )}
+
+            {page === "memos" && (
+              <MemosPage
+                labels={t}
+                memos={memos}
+                dark={isDark}
+                locale={language === "zh" ? "zh-CN" : language === "es" ? "es-ES" : "en-US"}
+                onCreate={createMemo}
+                onUpdate={updateMemo}
+                onDelete={deleteMemo}
               />
             )}
 
@@ -1714,6 +1968,7 @@ export default function Home() {
           }
           active={
             page === "tasks" ||
+            page === "memos" ||
             page === "clipboard" ||
             page === "trash" ||
             page === "settings"
@@ -1735,7 +1990,7 @@ export default function Home() {
             onMouseDown={(event) =>
               event.stopPropagation()
             }
-            className={`absolute bottom-0 left-0 right-0 rounded-t-[32px] p-5 shadow-2xl ${
+            className={`absolute bottom-0 left-0 right-0 max-h-[85dvh] overflow-y-auto rounded-t-[32px] p-5 shadow-2xl ${
               isDark
                 ? "bg-slate-900 text-white"
                 : "bg-white text-slate-900"
@@ -1771,6 +2026,15 @@ export default function Home() {
                 label={t.allTasks}
                 onClick={() => {
                   setPage("tasks");
+                  setMobileMoreOpen(false);
+                }}
+                dark={isDark}
+              />
+
+              <MobileMoreItem
+                label={t.memos}
+                onClick={() => {
+                  setPage("memos");
                   setMobileMoreOpen(false);
                 }}
                 dark={isDark}
@@ -1947,6 +2211,9 @@ function TodayPage({
   onTasks,
   onProjects,
   dark,
+  leetcodeProblems,
+  onCreateLeetCode,
+  onToggleLeetCode,
 }: {
   t: (typeof translations)[Language];
   language: Language;
@@ -1962,6 +2229,9 @@ function TodayPage({
   onTasks: () => void;
   onProjects: () => void;
   dark: boolean;
+  leetcodeProblems: LeetCodeProblem[];
+  onCreateLeetCode: (problem: Omit<LeetCodeProblem, "id" | "completed" | "completedAt">) => Promise<boolean>;
+  onToggleLeetCode: (problem: LeetCodeProblem) => Promise<void>;
 }) {
   const completed =
     tasks.filter(
@@ -2010,6 +2280,15 @@ function TodayPage({
 
       <div className="grid gap-6 xl:grid-cols-[1.45fr_0.8fr]">
         <div className="space-y-6">
+          <LeetCodeCard
+            problems={leetcodeProblems}
+            labels={t}
+            today={TODAY}
+            dark={dark}
+            onCreate={onCreateLeetCode}
+            onToggle={onToggleLeetCode}
+          />
+
           <Card dark={dark}>
             <div className="mb-5 flex items-center justify-between">
               <div>
@@ -3175,6 +3454,7 @@ function ClipboardPage({
   t,
   clipboardText,
   setClipboardText,
+  clearClipboard,
   dark,
 }: {
   t: (typeof translations)[Language];
@@ -3182,6 +3462,7 @@ function ClipboardPage({
   setClipboardText: (
     value: string
   ) => void;
+  clearClipboard: () => Promise<void>;
   dark: boolean;
 }) {
   const [copied, setCopied] =
@@ -3231,9 +3512,7 @@ function ClipboardPage({
 
         <div className="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-5">
           <button
-            onClick={() =>
-              setClipboardText("")
-            }
+            onClick={clearClipboard}
             className="rounded-xl px-4 py-2 text-sm text-slate-400"
           >
             {t.clear}
@@ -5344,6 +5623,30 @@ function getCategoryName(
   }
 
   return t.life;
+}
+
+function mapMemoRow(row: Record<string, unknown>): Memo {
+  return {
+    id: String(row.id),
+    title: String(row.title ?? ""),
+    content: String(row.content ?? ""),
+    createdAt: String(row.created_at ?? ""),
+    updatedAt: String(row.updated_at ?? row.created_at ?? ""),
+  };
+}
+
+function mapLeetCodeRow(row: Record<string, unknown>): LeetCodeProblem {
+  const difficulty = row.difficulty === "medium" || row.difficulty === "hard" ? row.difficulty : "easy";
+  return {
+    id: String(row.id),
+    problemNumber: Number(row.problem_number),
+    title: String(row.title ?? ""),
+    difficulty,
+    topic: String(row.topic ?? ""),
+    plannedDate: String(row.planned_date ?? ""),
+    completed: Boolean(row.completed),
+    completedAt: row.completed_at ? String(row.completed_at) : null,
+  };
 }
 
 function getLocalDateString(date: Date) {
