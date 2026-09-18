@@ -11,7 +11,7 @@ import {
 import type { User } from "@supabase/supabase-js";
 
 import AuthPage from "@/components/AuthPage";
-import LeetCodeCard, { type LeetCodeProblem } from "@/components/LeetCodeCard";
+import LeetCodeCard, { type LeetCodeProblem, type NewLeetCodeProblem } from "@/components/LeetCodeCard";
 import MemosPage, { type Memo } from "@/components/MemosPage";
 import { supabase } from "@/lib/supabase";
 
@@ -714,7 +714,8 @@ export default function Home() {
           .from("leetcode_problems")
           .select("*")
           .eq("user_id", user.id)
-          .order("planned_date", { ascending: false }),
+          .order("planned_date", { ascending: true })
+          .order("created_at", { ascending: true }),
       ]);
 
       if (cancelled) return;
@@ -1284,7 +1285,7 @@ export default function Home() {
     setMemos((current) => current.filter((memo) => memo.id !== id));
   };
 
-  const createLeetCodeProblem = async (problem: Omit<LeetCodeProblem, "id" | "completed" | "completedAt">) => {
+  const createLeetCodeProblem = async (problem: NewLeetCodeProblem) => {
     if (!user) return false;
     const { data, error } = await supabase.from("leetcode_problems").insert({
       user_id: user.id,
@@ -1298,6 +1299,47 @@ export default function Home() {
     const created = mapLeetCodeRow(data);
     setLeetcodeProblems((current) => [created, ...current.filter((item) => item.id !== created.id)]);
     return true;
+  };
+
+  const importLeetCodeProblems = async (problemsToImport: NewLeetCodeProblem[]) => {
+    if (!user || problemsToImport.length === 0) return false;
+    const { data, error } = await supabase.from("leetcode_problems").insert(
+      problemsToImport.map((problem) => ({
+        user_id: user.id,
+        problem_number: problem.problemNumber,
+        title: problem.title,
+        difficulty: problem.difficulty,
+        topic: problem.topic,
+        planned_date: problem.plannedDate,
+      })),
+    ).select();
+    if (error) { console.error("Failed to import LeetCode plan:", error); alert(error.message); return false; }
+    const imported = (data ?? []).map(mapLeetCodeRow);
+    setLeetcodeProblems((current) => [...imported, ...current.filter((item) => !imported.some((created) => created.id === item.id))]);
+    return true;
+  };
+
+  const updateLeetCodeProblem = async (id: string, problem: NewLeetCodeProblem) => {
+    if (!user) return false;
+    const { data, error } = await supabase.from("leetcode_problems").update({
+      problem_number: problem.problemNumber,
+      title: problem.title,
+      difficulty: problem.difficulty,
+      topic: problem.topic,
+      planned_date: problem.plannedDate,
+      updated_at: new Date().toISOString(),
+    }).eq("id", id).eq("user_id", user.id).select().single();
+    if (error) { console.error("Failed to update LeetCode problem:", error); alert(error.message); return false; }
+    const updated = mapLeetCodeRow(data);
+    setLeetcodeProblems((current) => current.map((item) => item.id === id ? updated : item));
+    return true;
+  };
+
+  const deleteLeetCodeProblem = async (id: string) => {
+    if (!user) return;
+    const { error } = await supabase.from("leetcode_problems").delete().eq("id", id).eq("user_id", user.id);
+    if (error) { console.error("Failed to delete LeetCode problem:", error); alert(error.message); return; }
+    setLeetcodeProblems((current) => current.filter((problem) => problem.id !== id));
   };
 
   const toggleLeetCodeProblem = async (problem: LeetCodeProblem) => {
@@ -1805,6 +1847,9 @@ export default function Home() {
                 dark={isDark}
                 leetcodeProblems={leetcodeProblems}
                 onCreateLeetCode={createLeetCodeProblem}
+                onBulkImportLeetCode={importLeetCodeProblems}
+                onUpdateLeetCode={updateLeetCodeProblem}
+                onDeleteLeetCode={deleteLeetCodeProblem}
                 onToggleLeetCode={toggleLeetCodeProblem}
               />
             )}
@@ -2226,6 +2271,9 @@ function TodayPage({
   dark,
   leetcodeProblems,
   onCreateLeetCode,
+  onBulkImportLeetCode,
+  onUpdateLeetCode,
+  onDeleteLeetCode,
   onToggleLeetCode,
 }: {
   t: (typeof translations)[Language];
@@ -2243,7 +2291,10 @@ function TodayPage({
   onProjects: () => void;
   dark: boolean;
   leetcodeProblems: LeetCodeProblem[];
-  onCreateLeetCode: (problem: Omit<LeetCodeProblem, "id" | "completed" | "completedAt">) => Promise<boolean>;
+  onCreateLeetCode: (problem: NewLeetCodeProblem) => Promise<boolean>;
+  onBulkImportLeetCode: (problems: NewLeetCodeProblem[]) => Promise<boolean>;
+  onUpdateLeetCode: (id: string, problem: NewLeetCodeProblem) => Promise<boolean>;
+  onDeleteLeetCode: (id: string) => Promise<void>;
   onToggleLeetCode: (problem: LeetCodeProblem) => Promise<void>;
 }) {
   const completed =
@@ -2296,9 +2347,13 @@ function TodayPage({
           <LeetCodeCard
             problems={leetcodeProblems}
             labels={t}
+            language={language}
             today={TODAY}
             dark={dark}
             onCreate={onCreateLeetCode}
+            onBulkImport={onBulkImportLeetCode}
+            onUpdate={onUpdateLeetCode}
+            onDelete={onDeleteLeetCode}
             onToggle={onToggleLeetCode}
           />
 
