@@ -13,6 +13,8 @@ import type { User } from "@supabase/supabase-js";
 import AuthPage from "@/components/AuthPage";
 import LeetCodeCard, { type LeetCodeProblem, type NewLeetCodeProblem } from "@/components/LeetCodeCard";
 import MemosPage, { type Memo } from "@/components/MemosPage";
+import RecurringPlansPage, { RecurringTodayCard } from "@/components/RecurringPlans";
+import { occursOnDate, type NewRecurringPlan, type RecurringPlan, type RecurringPlanCompletion } from "@/lib/recurring-plans";
 import { supabase } from "@/lib/supabase";
 
 type Language = "zh" | "en" | "es";
@@ -31,6 +33,7 @@ type Page =
   | "projects"
   | "projectDetail"
   | "tasks"
+  | "recurring"
   | "memos"
   | "clipboard"
   | "trash"
@@ -101,6 +104,7 @@ const translations = {
     projects: "项目",
     allTasks: "所有任务",
     memos: "备忘录",
+    recurringPlans: "周期计划",
     clipboard: "剪切板",
     trash: "回收站",
     restore: "恢复",
@@ -246,6 +250,7 @@ const translations = {
     projects: "Projects",
     allTasks: "All Tasks",
     memos: "Memos",
+    recurringPlans: "Recurring Plans",
     clipboard: "Clipboard",
     trash: "Trash",
     restore: "Restore",
@@ -391,6 +396,7 @@ const translations = {
     projects: "Proyectos",
     allTasks: "Todas las tareas",
     memos: "Notas",
+    recurringPlans: "Planes recurrentes",
     clipboard: "Portapapeles",
     trash: "Papelera",
     restore: "Restaurar",
@@ -595,6 +601,8 @@ export default function Home() {
 
   const [memos, setMemos] = useState<Memo[]>([]);
   const [leetcodeProblems, setLeetcodeProblems] = useState<LeetCodeProblem[]>([]);
+  const [recurringPlans, setRecurringPlans] = useState<RecurringPlan[]>([]);
+  const [recurringCompletions, setRecurringCompletions] = useState<RecurringPlanCompletion[]>([]);
 
   const [cloudDataReady, setCloudDataReady] =
     useState(false);
@@ -663,6 +671,8 @@ export default function Home() {
       setClipboardText("");
       setMemos([]);
       setLeetcodeProblems([]);
+      setRecurringPlans([]);
+      setRecurringCompletions([]);
       setLanguage("zh");
       setTheme("default");
       setCloudDataReady(false);
@@ -681,6 +691,8 @@ export default function Home() {
         clipboardResult,
         memosResult,
         leetcodeResult,
+        recurringPlansResult,
+        recurringCompletionsResult,
       ] = await Promise.all([
         supabase
           .from("tasks")
@@ -716,6 +728,9 @@ export default function Home() {
           .eq("user_id", user.id)
           .order("planned_date", { ascending: true })
           .order("created_at", { ascending: true }),
+
+        supabase.from("recurring_plans").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("recurring_plan_completions").select("*").eq("user_id", user.id).order("occurrence_date", { ascending: false }),
       ]);
 
       if (cancelled) return;
@@ -846,6 +861,11 @@ export default function Home() {
       } else {
         setLeetcodeProblems((leetcodeResult.data ?? []).map(mapLeetCodeRow));
       }
+
+      if (recurringPlansResult.error) console.error("Failed to load recurring plans:", recurringPlansResult.error);
+      else setRecurringPlans((recurringPlansResult.data ?? []).map(mapRecurringPlanRow));
+      if (recurringCompletionsResult.error) console.error("Failed to load recurring completions:", recurringCompletionsResult.error);
+      else setRecurringCompletions((recurringCompletionsResult.data ?? []).map(mapRecurringCompletionRow));
 
       if (!cancelled) {
         setCloudDataReady(true);
@@ -1065,6 +1085,16 @@ export default function Home() {
       setLeetcodeProblems((current) => [problem, ...current.filter((item) => item.id !== problem.id)]);
     };
 
+    const handleRecurringPlanChange = (payload: RealtimePayload) => {
+      const plan = mapRecurringPlanRow(payload.new);
+      setRecurringPlans((current) => [plan, ...current.filter((item) => item.id !== plan.id)]);
+    };
+
+    const handleRecurringCompletionChange = (payload: RealtimePayload) => {
+      const completion = mapRecurringCompletionRow(payload.new);
+      setRecurringCompletions((current) => [completion, ...current.filter((item) => item.id !== completion.id)]);
+    };
+
     const handlePreferencesChange = (payload: RealtimePayload) => {
       const row = payload.new;
 
@@ -1141,6 +1171,9 @@ export default function Home() {
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "memos", filter: `user_id=eq.${user.id}` }, handleMemoChange)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "leetcode_problems", filter: `user_id=eq.${user.id}` }, handleLeetCodeChange)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "leetcode_problems", filter: `user_id=eq.${user.id}` }, handleLeetCodeChange)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "recurring_plans", filter: `user_id=eq.${user.id}` }, handleRecurringPlanChange)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "recurring_plans", filter: `user_id=eq.${user.id}` }, handleRecurringPlanChange)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "recurring_plan_completions", filter: `user_id=eq.${user.id}` }, handleRecurringCompletionChange)
       .on(
         "postgres_changes",
         {
@@ -1349,6 +1382,32 @@ export default function Home() {
     const { error } = await supabase.from("leetcode_problems").update({ completed, completed_at: completedAt, updated_at: new Date().toISOString() }).eq("id", problem.id).eq("user_id", user.id);
     if (error) { console.error("Failed to update LeetCode problem:", error); alert(error.message); return; }
     setLeetcodeProblems((current) => current.map((item) => item.id === problem.id ? { ...item, completed, completedAt } : item));
+  };
+
+  const recurringPlanFields = (plan: NewRecurringPlan) => ({ title: plan.title, description: plan.description, category: plan.category, start_date: plan.startDate, recurrence_type: plan.recurrenceType, interval_value: plan.intervalValue, weekdays: plan.weekdays, day_of_month: plan.dayOfMonth, end_date: plan.endDate, active: plan.active });
+  const createRecurringPlan = async (plan: NewRecurringPlan) => {
+    if (!user) return false;
+    const { data, error } = await supabase.from("recurring_plans").insert({ user_id: user.id, ...recurringPlanFields(plan) }).select().single();
+    if (error) { console.error("Failed to create recurring plan:", error); alert(error.message); return false; }
+    const created = mapRecurringPlanRow(data); setRecurringPlans((current) => [created, ...current.filter((item) => item.id !== created.id)]); return true;
+  };
+  const updateRecurringPlan = async (id: string, plan: NewRecurringPlan) => {
+    if (!user) return false;
+    const { data, error } = await supabase.from("recurring_plans").update({ ...recurringPlanFields(plan), updated_at: new Date().toISOString() }).eq("id", id).eq("user_id", user.id).select().single();
+    if (error) { console.error("Failed to update recurring plan:", error); alert(error.message); return false; }
+    const updated = mapRecurringPlanRow(data); setRecurringPlans((current) => current.map((item) => item.id === id ? updated : item)); return true;
+  };
+  const toggleRecurringPlanActive = async (plan: RecurringPlan) => { await updateRecurringPlan(plan.id, { ...plan, active: !plan.active }); };
+  const deleteRecurringPlan = async (id: string) => {
+    if (!user) return; const { error } = await supabase.from("recurring_plans").delete().eq("id", id).eq("user_id", user.id);
+    if (error) { console.error("Failed to delete recurring plan:", error); alert(error.message); return; }
+    setRecurringPlans((current) => current.filter((item) => item.id !== id)); setRecurringCompletions((current) => current.filter((item) => item.planId !== id));
+  };
+  const toggleRecurringOccurrence = async (plan: RecurringPlan, date: string) => {
+    if (!user) return; const existing = recurringCompletions.find((item) => item.planId === plan.id && item.occurrenceDate === date);
+    if (existing) { const { error } = await supabase.from("recurring_plan_completions").delete().eq("id", existing.id).eq("user_id", user.id); if (error) { alert(error.message); return; } setRecurringCompletions((current) => current.filter((item) => item.id !== existing.id)); return; }
+    const { data, error } = await supabase.from("recurring_plan_completions").insert({ user_id: user.id, plan_id: plan.id, occurrence_date: date }).select().single();
+    if (error) { alert(error.message); return; } const created = mapRecurringCompletionRow(data); setRecurringCompletions((current) => [created, ...current.filter((item) => item.id !== created.id)]);
   };
 
   const openCreate = () => {
@@ -1784,6 +1843,8 @@ export default function Home() {
               onClick={() => setPage("memos")}
             />
 
+            <SidebarItem label={t.recurringPlans} active={page === "recurring"} dark={isDark} onClick={() => setPage("recurring")} />
+
             <SidebarItem
               label={t.clipboard}
               active={page === "clipboard"}
@@ -1851,6 +1912,10 @@ export default function Home() {
                 onUpdateLeetCode={updateLeetCodeProblem}
                 onDeleteLeetCode={deleteLeetCodeProblem}
                 onToggleLeetCode={toggleLeetCodeProblem}
+                recurringPlans={recurringPlans.filter((plan) => plan.active && occursOnDate(plan, TODAY))}
+                recurringCompletions={recurringCompletions}
+                onToggleRecurring={toggleRecurringOccurrence}
+                onOpenRecurring={() => setPage("recurring")}
               />
             )}
 
@@ -1946,6 +2011,8 @@ export default function Home() {
               />
             )}
 
+            {page === "recurring" && <RecurringPlansPage plans={recurringPlans} completions={recurringCompletions} language={language} today={TODAY} dark={isDark} onCreate={createRecurringPlan} onUpdate={updateRecurringPlan} onToggleActive={toggleRecurringPlanActive} onDelete={deleteRecurringPlan} />}
+
             {page === "trash" && (
               <TrashPage
                 t={t}
@@ -2027,6 +2094,7 @@ export default function Home() {
           active={
             page === "tasks" ||
             page === "memos" ||
+            page === "recurring" ||
             page === "clipboard" ||
             page === "trash" ||
             page === "settings"
@@ -2097,6 +2165,8 @@ export default function Home() {
                 }}
                 dark={isDark}
               />
+
+              <MobileMoreItem label={t.recurringPlans} onClick={() => { setPage("recurring"); setMobileMoreOpen(false); }} dark={isDark} />
 
               <MobileMoreItem
                 label={t.clipboard}
@@ -2275,6 +2345,10 @@ function TodayPage({
   onUpdateLeetCode,
   onDeleteLeetCode,
   onToggleLeetCode,
+  recurringPlans,
+  recurringCompletions,
+  onToggleRecurring,
+  onOpenRecurring,
 }: {
   t: (typeof translations)[Language];
   language: Language;
@@ -2296,6 +2370,10 @@ function TodayPage({
   onUpdateLeetCode: (id: string, problem: NewLeetCodeProblem) => Promise<boolean>;
   onDeleteLeetCode: (id: string) => Promise<void>;
   onToggleLeetCode: (problem: LeetCodeProblem) => Promise<void>;
+  recurringPlans: RecurringPlan[];
+  recurringCompletions: RecurringPlanCompletion[];
+  onToggleRecurring: (plan: RecurringPlan, date: string) => Promise<void>;
+  onOpenRecurring: () => void;
 }) {
   const completed =
     tasks.filter(
@@ -2356,6 +2434,8 @@ function TodayPage({
             onDelete={onDeleteLeetCode}
             onToggle={onToggleLeetCode}
           />
+
+          <RecurringTodayCard plans={recurringPlans} completions={recurringCompletions} language={language} today={TODAY} dark={dark} onToggle={onToggleRecurring} onOpen={onOpenRecurring} />
 
           <Card dark={dark}>
             <div className="mb-5 flex items-center justify-between">
@@ -5740,6 +5820,14 @@ function mapLeetCodeRow(row: Record<string, unknown>): LeetCodeProblem {
     completed: Boolean(row.completed),
     completedAt: row.completed_at ? String(row.completed_at) : null,
   };
+}
+
+function mapRecurringPlanRow(row: Record<string, unknown>): RecurringPlan {
+  return { id: String(row.id), title: String(row.title ?? ""), description: String(row.description ?? ""), category: row.category as RecurringPlan["category"], startDate: String(row.start_date ?? ""), recurrenceType: row.recurrence_type as RecurringPlan["recurrenceType"], intervalValue: Number(row.interval_value ?? 1), weekdays: Array.isArray(row.weekdays) ? row.weekdays.map(Number) : [], dayOfMonth: row.day_of_month == null ? null : Number(row.day_of_month), endDate: row.end_date ? String(row.end_date) : null, active: Boolean(row.active) };
+}
+
+function mapRecurringCompletionRow(row: Record<string, unknown>): RecurringPlanCompletion {
+  return { id: String(row.id), planId: String(row.plan_id), occurrenceDate: String(row.occurrence_date ?? ""), completedAt: String(row.completed_at ?? "") };
 }
 
 function getLocalDateString(date: Date) {
