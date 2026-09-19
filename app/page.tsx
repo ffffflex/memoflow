@@ -14,6 +14,7 @@ import AuthPage from "@/components/AuthPage";
 import LeetCodeCard, { type LeetCodeProblem, type NewLeetCodeProblem } from "@/components/LeetCodeCard";
 import MemosPage, { type Memo } from "@/components/MemosPage";
 import RecurringPlansPage, { RecurringTodayCard } from "@/components/RecurringPlans";
+import type { AccentTone } from "@/components/PrimaryActionCard";
 import { occursOnDate, type NewRecurringPlan, type RecurringPlan, type RecurringPlanCompletion } from "@/lib/recurring-plans";
 import { supabase } from "@/lib/supabase";
 
@@ -202,8 +203,10 @@ const translations = {
     clear: "清空",
     copy: "复制",
     copied: "已复制",
-    memosDescription: "保存需要长期保留的文字。",
+    memosDescription: "快速保存你想随时查看的信息。",
     newMemo: "新建备忘录",
+    newMemoDescription: "创建一条新的文字备忘录",
+    noMemosHint: "创建第一条备忘录来保存重要信息。",
     memoTitle: "标题",
     memoContent: "内容",
     noMemos: "还没有备忘录",
@@ -348,8 +351,10 @@ const translations = {
     clear: "Clear",
     copy: "Copy",
     copied: "Copied",
-    memosDescription: "Keep text you want to save for later.",
+    memosDescription: "Quickly save information you want to revisit anytime.",
     newMemo: "New Memo",
+    newMemoDescription: "Create a new text memo",
+    noMemosHint: "Create your first memo to save important information.",
     memoTitle: "Title",
     memoContent: "Content",
     noMemos: "No memos yet",
@@ -496,8 +501,10 @@ const translations = {
     clear: "Limpiar",
     copy: "Copiar",
     copied: "Copiado",
-    memosDescription: "Guarda texto que quieras conservar.",
+    memosDescription: "Guarda rápidamente información para consultarla cuando quieras.",
     newMemo: "Nueva nota",
+    newMemoDescription: "Crea una nueva nota de texto",
+    noMemosHint: "Crea tu primera nota para guardar información importante.",
     memoTitle: "Título",
     memoContent: "Contenido",
     noMemos: "Todavía no hay notas",
@@ -1234,6 +1241,7 @@ export default function Home() {
               : "bg-slate-950";
 
   const isDark = theme === "dark";
+  const accentTone = theme === "warm" ? "amber" : theme === "blue" ? "blue" : theme === "purple" ? "violet" : "slate";
 
   const todayTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -1906,6 +1914,7 @@ export default function Home() {
                   setPage("projects")
                 }
                 dark={isDark}
+                accentTone={accentTone}
                 leetcodeProblems={leetcodeProblems}
                 onCreateLeetCode={createLeetCodeProblem}
                 onBulkImportLeetCode={importLeetCodeProblems}
@@ -2008,10 +2017,11 @@ export default function Home() {
                 onCreate={createMemo}
                 onUpdate={updateMemo}
                 onDelete={deleteMemo}
+                accentTone={accentTone}
               />
             )}
 
-            {page === "recurring" && <RecurringPlansPage plans={recurringPlans} completions={recurringCompletions} language={language} today={TODAY} dark={isDark} onCreate={createRecurringPlan} onUpdate={updateRecurringPlan} onToggleActive={toggleRecurringPlanActive} onDelete={deleteRecurringPlan} />}
+            {page === "recurring" && <RecurringPlansPage plans={recurringPlans} completions={recurringCompletions} language={language} today={TODAY} dark={isDark} accentTone={accentTone} onCreate={createRecurringPlan} onUpdate={updateRecurringPlan} onToggleActive={toggleRecurringPlanActive} onDelete={deleteRecurringPlan} />}
 
             {page === "trash" && (
               <TrashPage
@@ -2339,6 +2349,7 @@ function TodayPage({
   onTasks,
   onProjects,
   dark,
+  accentTone,
   leetcodeProblems,
   onCreateLeetCode,
   onBulkImportLeetCode,
@@ -2364,6 +2375,7 @@ function TodayPage({
   onTasks: () => void;
   onProjects: () => void;
   dark: boolean;
+  accentTone: AccentTone;
   leetcodeProblems: LeetCodeProblem[];
   onCreateLeetCode: (problem: NewLeetCodeProblem) => Promise<boolean>;
   onBulkImportLeetCode: (problems: NewLeetCodeProblem[]) => Promise<boolean>;
@@ -2428,6 +2440,7 @@ function TodayPage({
             language={language}
             today={TODAY}
             dark={dark}
+            accentTone={accentTone}
             onCreate={onCreateLeetCode}
             onBulkImport={onBulkImportLeetCode}
             onUpdate={onUpdateLeetCode}
