@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CSSProperties,
   FormEvent,
   useEffect,
   useMemo,
@@ -98,6 +99,15 @@ type RealtimePayload = {
 };
 
 const TODAY = getLocalDateString(new Date());
+
+const accentPalettes: Record<Theme, Record<string, string>> = {
+  default: { "--accent": "#0f172a", "--accent-hover": "#1e293b", "--accent-soft": "rgba(15,23,42,.07)", "--accent-soft-hover": "rgba(15,23,42,.12)", "--accent-border": "rgba(15,23,42,.24)", "--accent-foreground": "#ffffff" },
+  white: { "--accent": "#334155", "--accent-hover": "#1e293b", "--accent-soft": "rgba(51,65,85,.07)", "--accent-soft-hover": "rgba(51,65,85,.13)", "--accent-border": "rgba(51,65,85,.25)", "--accent-foreground": "#ffffff" },
+  warm: { "--accent": "#c25f0a", "--accent-hover": "#9a4705", "--accent-soft": "rgba(194,95,10,.09)", "--accent-soft-hover": "rgba(194,95,10,.16)", "--accent-border": "rgba(194,95,10,.3)", "--accent-foreground": "#ffffff" },
+  blue: { "--accent": "#2563eb", "--accent-hover": "#1d4ed8", "--accent-soft": "rgba(37,99,235,.08)", "--accent-soft-hover": "rgba(37,99,235,.15)", "--accent-border": "rgba(37,99,235,.3)", "--accent-foreground": "#ffffff" },
+  purple: { "--accent": "#7c3aed", "--accent-hover": "#6d28d9", "--accent-soft": "rgba(124,58,237,.08)", "--accent-soft-hover": "rgba(124,58,237,.15)", "--accent-border": "rgba(124,58,237,.3)", "--accent-foreground": "#ffffff" },
+  dark: { "--accent": "#e2e8f0", "--accent-hover": "#f8fafc", "--accent-soft": "rgba(226,232,240,.1)", "--accent-soft-hover": "rgba(226,232,240,.16)", "--accent-border": "rgba(226,232,240,.3)", "--accent-foreground": "#0f172a" },
+};
 
 const translations = {
   zh: {
@@ -1782,13 +1792,14 @@ export default function Home() {
 
   return (
     <main
+      style={accentPalettes[theme] as CSSProperties}
       className={`min-h-screen transition-colors duration-300 ${themeClass} ${
         isDark
           ? "text-white"
           : "text-slate-900"
       }`}
     >
-      <div className="mx-auto flex min-h-screen max-w-[1600px]">
+      <div className="flex min-h-screen w-full">
         <aside
           className={`sticky top-0 hidden h-screen w-64 shrink-0 flex-col overflow-hidden border-r p-6 lg:flex ${
             isDark
@@ -2087,7 +2098,7 @@ export default function Home() {
 
         <button
           onClick={openCreate}
-          className="mx-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900 text-2xl text-white shadow-md"
+          className="accent-bg mx-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-2xl shadow-md"
         >
           +
         </button>
@@ -2135,7 +2146,7 @@ export default function Home() {
             }
             className={`absolute bottom-0 left-0 right-0 max-h-[85dvh] overflow-y-auto rounded-t-[32px] p-5 shadow-2xl ${
               isDark
-                ? "bg-slate-900 text-white"
+                ? "accent-bg"
                 : "bg-white text-slate-900"
             }`}
           >
@@ -2433,7 +2444,7 @@ function TodayPage({
 
         <button
           onClick={onCreate}
-          className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-slate-700"
+          className="accent-bg rounded-2xl px-5 py-3 text-sm font-semibold shadow-lg transition"
         >
           + {t.create}
         </button>
@@ -2580,7 +2591,7 @@ function TodayPage({
 
                       <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
                         <div
-                          className="h-full rounded-full bg-slate-900"
+                          className="accent-fill h-full rounded-full"
                           style={{
                             width: `${project.progress}%`,
                           }}
@@ -2593,7 +2604,7 @@ function TodayPage({
                         onClick={() =>
                           editProject(project)
                         }
-                        className="flex h-9 w-9 items-center justify-center rounded-xl text-sm text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                        className="accent-text accent-hover flex h-9 w-9 items-center justify-center rounded-xl transition"
                         title={t.edit}
                       >
                         ✎
@@ -2642,7 +2653,7 @@ function TodayPage({
 
             <div className={`mt-5 h-2 overflow-hidden rounded-full ${dark ? "bg-slate-700" : "bg-slate-100"}`}>
               <div
-                className={`h-full rounded-full transition-all ${accentTone === "amber" ? "bg-amber-500" : accentTone === "blue" ? "bg-blue-600" : accentTone === "violet" ? "bg-violet-600" : dark ? "bg-slate-100" : "bg-slate-900"}`}
+                className="accent-fill h-full rounded-full transition-all"
                 style={{
                   width: `${percentage}%`,
                 }}
@@ -2790,7 +2801,7 @@ function ProjectsPage({
                     }
                     className={`flex h-7 w-7 items-center justify-center rounded-full border-2 ${
                       project.completed
-                        ? "border-slate-900 bg-slate-900 text-white"
+                        ? "accent-bg accent-border"
                         : "border-slate-300"
                     }`}
                     title={t.completed}
@@ -3234,12 +3245,12 @@ function ProjectDetailPage({
                       (current) => !current
                     )
                   }
-                  className="rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-200"
+                  className="accent-soft rounded-2xl border px-4 py-2.5 text-sm font-medium"
                 >
                   + {t.addText}
                 </button>
 
-                <label className="cursor-pointer rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700">
+                <label className="accent-bg cursor-pointer rounded-2xl px-4 py-2.5 text-sm font-medium">
                   {uploading
                     ? t.uploading
                     : `+ ${t.addAttachment}`}
@@ -3289,7 +3300,7 @@ function ProjectDetailPage({
                       !textValue.trim() ||
                       savingText
                     }
-                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-30"
+                    className="accent-bg rounded-xl px-4 py-2 text-sm font-medium disabled:opacity-30"
                   >
                     {t.saveText}
                   </button>
@@ -3358,7 +3369,7 @@ function ProjectDetailPage({
                                     false
                                   )
                                 }
-                                className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700"
+                                className="accent-soft rounded-xl border px-3 py-2 text-xs font-medium"
                               >
                                 {t.openAttachment}
                               </button>
@@ -3370,7 +3381,7 @@ function ProjectDetailPage({
                                     true
                                   )
                                 }
-                                className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700"
+                                className="accent-soft rounded-xl border px-3 py-2 text-xs font-medium"
                               >
                                 {t.downloadAttachment}
                               </button>
@@ -3423,7 +3434,7 @@ function ProjectDetailPage({
 
             <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
               <div
-                className="h-full rounded-full bg-slate-900"
+                className="accent-fill h-full rounded-full"
                 style={{
                   width: `${calculatedProgress}%`,
                 }}
@@ -3450,7 +3461,7 @@ function ProjectDetailPage({
                     <div
                       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                         task.completed
-                          ? "border-slate-900 bg-slate-900 text-xs text-white"
+                          ? "accent-bg accent-border text-xs"
                           : "border-slate-300"
                       }`}
                     >
@@ -3689,14 +3700,14 @@ function ClipboardPage({
         <div className="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-5">
           <button
             onClick={clearClipboard}
-            className="rounded-xl px-4 py-2 text-sm text-slate-400"
+            className="rounded-xl border border-red-200 px-4 py-2 text-sm text-red-500 hover:bg-red-50"
           >
             {t.clear}
           </button>
 
           <button
             onClick={copyText}
-            className="rounded-xl bg-slate-900 px-5 py-2 text-sm text-white"
+            className="accent-bg rounded-xl px-5 py-2 text-sm"
           >
             {copied
               ? t.copied
@@ -3790,7 +3801,7 @@ function TrashPage({
                         <div className="flex shrink-0 flex-wrap justify-end gap-2">
                           <button
                             onClick={() => restoreTask(task.id)}
-                            className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
+                            className="accent-soft rounded-xl border px-3 py-2 text-xs font-medium transition"
                           >
                             {t.restore}
                           </button>
@@ -3846,7 +3857,7 @@ function TrashPage({
                       <div className="flex shrink-0 flex-wrap justify-end gap-2">
                         <button
                           onClick={() => restoreProject(project.id)}
-                          className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
+                          className="accent-soft rounded-xl border px-3 py-2 text-xs font-medium transition"
                         >
                           {t.restore}
                         </button>
@@ -3960,7 +3971,7 @@ function SettingsPage({
                 }
                 className={`rounded-2xl border px-4 py-4 ${
                   language === value
-                    ? "border-slate-900 bg-slate-900 text-white"
+                    ? "accent-bg accent-border"
                     : "border-slate-200"
                 }`}
               >
@@ -3991,7 +4002,7 @@ function SettingsPage({
                   }
                   className={`flex items-center gap-4 rounded-2xl border p-4 ${
                     theme === item.value
-                      ? "border-slate-900"
+                      ? "accent-border accent-soft"
                       : "border-slate-200"
                   }`}
                 >
@@ -4779,7 +4790,7 @@ function EditTaskModal({
           <button
             type="submit"
             disabled={!title.trim() || saving}
-            className="flex-[1.5] rounded-2xl bg-slate-900 px-4 py-3 font-medium text-white disabled:opacity-30"
+            className="accent-bg flex-[1.5] rounded-2xl px-4 py-3 font-medium disabled:opacity-30"
           >
             {t.saveChanges}
           </button>
@@ -4956,7 +4967,7 @@ function EditProjectModal({
                   Number(event.target.value)
                 )
               }
-              className="w-full accent-slate-900"
+              className="accent-check w-full"
             />
           </div>
         </div>
@@ -4973,7 +4984,7 @@ function EditProjectModal({
           <button
             type="submit"
             disabled={!title.trim() || saving}
-            className="flex-[1.5] rounded-2xl bg-slate-900 px-4 py-3 font-medium text-white disabled:opacity-30"
+            className="accent-bg flex-[1.5] rounded-2xl px-4 py-3 font-medium disabled:opacity-30"
           >
             {t.saveChanges}
           </button>
@@ -5151,7 +5162,7 @@ function TaskItem({
         <div
           className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
             task.completed
-              ? "border-slate-900 bg-slate-900 text-white"
+              ? "accent-bg accent-border"
               : "border-slate-300"
           }`}
         >
@@ -5203,7 +5214,7 @@ function TaskItem({
           onClick={() =>
             editTask(task)
           }
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-sm text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          className="accent-text accent-hover flex h-9 w-9 items-center justify-center rounded-xl transition"
           title={t.edit}
         >
           ✎
@@ -5262,7 +5273,7 @@ function ProjectItem({
 
       <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
         <div
-          className="h-full rounded-full bg-slate-900"
+          className="accent-fill h-full rounded-full"
           style={{
             width: `${automaticProgress}%`,
           }}
@@ -5289,7 +5300,7 @@ function ProjectItem({
                   <span
                     className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
                       task.completed
-                        ? "border-slate-900 bg-slate-900 text-[10px] text-white"
+                        ? "accent-bg accent-border text-[10px]"
                         : "border-slate-300"
                     }`}
                   >
@@ -5339,7 +5350,7 @@ function SmallCalendar({
               addMonths(current, -1)
             )
           }
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-xl text-slate-400 transition hover:bg-slate-100"
+          className="accent-soft flex h-9 w-9 items-center justify-center rounded-xl text-xl transition"
         >
           ‹
         </button>
@@ -5354,7 +5365,7 @@ function SmallCalendar({
               addMonths(current, 1)
             )
           }
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-xl text-slate-400 transition hover:bg-slate-100"
+          className="accent-soft flex h-9 w-9 items-center justify-center rounded-xl text-xl transition"
         >
           ›
         </button>
@@ -5385,7 +5396,7 @@ function SmallCalendar({
               }}
               className={`flex aspect-square items-center justify-center rounded-xl text-sm transition ${
                 isToday
-                  ? "bg-slate-900 font-semibold text-white"
+                  ? "accent-bg font-semibold"
                   : dayInfo.currentMonth
                     ? "text-slate-700 hover:bg-slate-100"
                     : "text-slate-300 hover:bg-slate-50"
@@ -5423,11 +5434,7 @@ function DynamicCalendar({
               addMonths(current, -1)
             )
           }
-          className={`rounded-xl px-4 py-2 text-xl transition ${
-            dark
-              ? "text-slate-400 hover:bg-slate-800"
-              : "text-slate-500 hover:bg-slate-100"
-          }`}
+          className="accent-soft rounded-xl px-4 py-2 text-xl transition"
         >
           ‹
         </button>
@@ -5441,7 +5448,7 @@ function DynamicCalendar({
             onClick={() =>
               setMonth(startOfMonth(new Date()))
             }
-            className="mt-1 text-xs font-medium text-slate-400 hover:text-slate-600"
+            className="accent-text mt-1 text-xs font-medium"
           >
             {language === "zh"
               ? "今天"
@@ -5457,11 +5464,7 @@ function DynamicCalendar({
               addMonths(current, 1)
             )
           }
-          className={`rounded-xl px-4 py-2 text-xl transition ${
-            dark
-              ? "text-slate-400 hover:bg-slate-800"
-              : "text-slate-500 hover:bg-slate-100"
-          }`}
+          className="accent-soft rounded-xl px-4 py-2 text-xl transition"
         >
           ›
         </button>
@@ -5529,7 +5532,7 @@ function DynamicCalendar({
               <div
                 className={`mb-2 flex h-8 w-8 items-center justify-center rounded-full text-sm ${
                   isToday
-                    ? "bg-slate-900 font-semibold text-white"
+                    ? "accent-bg font-semibold"
                     : dayInfo.currentMonth
                       ? ""
                       : "text-slate-300"
@@ -5598,7 +5601,7 @@ function SidebarItem({
       onClick={onClick}
       className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium ${
         active
-          ? "bg-slate-900 text-white"
+          ? "accent-bg"
           : dark
             ? "text-slate-400 hover:bg-slate-800"
             : "text-slate-500 hover:bg-slate-100"
@@ -5623,7 +5626,7 @@ function MobileButton({
       onClick={onClick}
       className={`rounded-full px-3 py-2 text-xs ${
         active
-          ? "bg-slate-900 text-white"
+          ? "accent-bg"
           : "text-slate-500"
       }`}
     >
@@ -5641,13 +5644,12 @@ function MobileMoreItem({
   onClick: () => void;
   dark: boolean;
 }) {
+  void dark;
   return (
     <button
       onClick={onClick}
       className={`flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-sm font-medium transition ${
-        dark
-          ? "bg-slate-800 text-slate-100 hover:bg-slate-700"
-          : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+        "accent-soft"
       }`}
     >
       <span>{label}</span>
@@ -5704,7 +5706,7 @@ function PageHeader({
       {action && (
         <button
           onClick={action}
-          className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white"
+          className="accent-bg rounded-2xl px-5 py-3 text-sm font-semibold"
         >
           + {actionText}
         </button>
@@ -5761,7 +5763,7 @@ function ModalActions({
       <button
         type="submit"
         disabled={disabled}
-        className="flex-[1.5] rounded-2xl bg-slate-900 px-4 py-3 font-medium text-white disabled:opacity-30"
+        className="accent-bg flex-[1.5] rounded-2xl px-4 py-3 font-medium disabled:opacity-30"
       >
         {submit}
       </button>

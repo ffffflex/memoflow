@@ -138,13 +138,13 @@ export default function MemosPage({
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => copyMemo(memo)}
-                    className="hover:text-slate-700"
+                    className="accent-text"
                   >
                     {copiedId === memo.id ? labels.copied : labels.copy}
                   </button>
                   <button
                     onClick={() => openEdit(memo)}
-                    className="hover:text-slate-700"
+                    className="accent-text"
                   >
                     {labels.edit}
                   </button>
@@ -211,7 +211,7 @@ export default function MemosPage({
               </button>
               <button
                 disabled={saving}
-                className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                className="accent-bg rounded-xl px-5 py-2 text-sm font-semibold disabled:opacity-50"
               >
                 {labels.save}
               </button>

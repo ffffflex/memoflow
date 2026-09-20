@@ -407,7 +407,7 @@ export default function LeetCodeCard({
               className={`mt-2 h-2.5 overflow-hidden rounded-full ${dark ? "bg-slate-700" : "bg-slate-100"}`}
             >
               <div
-                className="h-full rounded-full bg-slate-900 transition-all"
+                className="accent-fill h-full rounded-full transition-all"
                 style={{ width: `${percentage}%` }}
               />
             </div>
@@ -532,7 +532,7 @@ export default function LeetCodeCard({
                 <button
                   disabled={!importText.trim()}
                   onClick={parseImport}
-                  className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  className="accent-bg rounded-xl px-5 py-2 text-sm font-semibold disabled:opacity-50"
                 >
                   {copy.parse}
                 </button>
@@ -573,7 +573,7 @@ export default function LeetCodeCard({
                 <button
                   disabled={!startDate}
                   onClick={resolveDates}
-                  className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  className="accent-bg rounded-xl px-5 py-2 text-sm font-semibold disabled:opacity-50"
                 >
                   {copy.continuePreview}
                 </button>
@@ -683,7 +683,7 @@ export default function LeetCodeCard({
                 <button
                   disabled={importing || !drafts.some((draft) => !draft.skip)}
                   onClick={confirmImport}
-                  className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  className="accent-bg rounded-xl px-5 py-2 text-sm font-semibold disabled:opacity-50"
                 >
                   {importing ? copy.importing : copy.confirmImport}
                 </button>
@@ -828,7 +828,7 @@ function ProblemRow({
         type="checkbox"
         checked={problem.completed}
         onChange={() => onToggle(problem)}
-        className="mt-1 h-4 w-4 accent-slate-900"
+        className="accent-check mt-1 h-4 w-4"
       />
       <span className="min-w-0 flex-1">
         <span
@@ -943,7 +943,7 @@ function ProblemEditor({
           </button>
           <button
             disabled={saving}
-            className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="accent-bg rounded-xl px-5 py-2 text-sm font-semibold disabled:opacity-50"
           >
             {labels.save}
           </button>

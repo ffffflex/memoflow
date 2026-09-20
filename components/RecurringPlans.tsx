@@ -231,7 +231,7 @@ export function RecurringTodayCard({
             className={`flex cursor-pointer items-start gap-3 rounded-2xl px-3 py-3 ${dark ? "hover:bg-slate-800" : "hover:bg-slate-50"}`}
           >
             <input
-              className="mt-1 h-4 w-4 accent-slate-900"
+              className="accent-check mt-1 h-4 w-4"
               type="checkbox"
               checked={done.has(plan.id)}
               onChange={() => void onToggle(plan, today)}
@@ -572,7 +572,7 @@ function Editor({
                         : [...current, day],
                     )
                   }
-                  className={`rounded-xl px-3 py-2 text-sm ${days.includes(day) ? "bg-slate-900 text-white" : dark ? "bg-slate-800" : "bg-slate-100"}`}
+                  className={`rounded-xl border px-3 py-2 text-sm ${days.includes(day) ? "accent-bg accent-border" : dark ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-100"}`}
                 >
                   {weekdayNames[language][day]}
                 </button>
@@ -649,7 +649,7 @@ function Editor({
           </button>
           <button
             disabled={saving || !title.trim()}
-            className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="accent-bg rounded-xl px-5 py-2 text-sm font-semibold disabled:opacity-50"
           >
             {c.save}
           </button>

@@ -3,6 +3,12 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --accent: #0f172a;
+  --accent-hover: #1e293b;
+  --accent-soft: rgba(15, 23, 42, 0.07);
+  --accent-soft-hover: rgba(15, 23, 42, 0.12);
+  --accent-border: rgba(15, 23, 42, 0.24);
+  --accent-foreground: #ffffff;
 }
 
 @theme inline {
@@ -23,4 +29,42 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.accent-bg {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+.accent-bg:hover {
+  background-color: var(--accent-hover);
+}
+.accent-text {
+  color: var(--accent);
+}
+.accent-border {
+  border-color: var(--accent-border);
+}
+.accent-soft {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background-color: var(--accent-soft);
+}
+.accent-soft:hover {
+  background-color: var(--accent-soft-hover);
+  border-color: var(--accent);
+}
+.accent-hover:hover {
+  color: var(--accent);
+  background-color: var(--accent-soft-hover);
+  border-color: var(--accent-border);
+}
+.accent-fill {
+  background-color: var(--accent);
+}
+.accent-check {
+  accent-color: var(--accent);
+}
+.accent-ring:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
