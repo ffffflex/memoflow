@@ -9,6 +9,7 @@ import {
 import PrimaryActionCard, {
   type AccentTone,
 } from "@/components/PrimaryActionCard";
+import ActionButton from "@/components/ActionButton";
 
 export type LeetCodeProblem = {
   id: string;
@@ -374,12 +375,13 @@ export default function LeetCodeCard({
       >
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-xl font-semibold">{labels.todaysLeetCode}</h3>
-          <button
+          <ActionButton
+            label={labels.viewProgress}
+            icon="◔"
             onClick={() => setShowProgress(true)}
-            className="text-sm text-slate-400 hover:text-slate-600"
-          >
-            {labels.viewProgress}
-          </button>
+            tone={accentTone}
+            dark={dark}
+          />
         </div>
         {problems.length === 0 ? (
           <div className="py-5 text-center">
@@ -444,22 +446,26 @@ export default function LeetCodeCard({
           className={`mt-4 flex flex-col gap-2 sm:flex-row ${problems.length ? "" : "justify-center"}`}
         >
           {problems.length > 0 && (
-            <button
+            <ActionButton
+              label={copy.viewPlan}
               onClick={() => setShowPlan(true)}
-              className={`min-h-11 rounded-xl border px-4 py-2 text-sm font-semibold ${dark ? "border-slate-700 text-slate-300" : "border-slate-200 text-slate-600"}`}
-            >
-              {copy.viewPlan}
-            </button>
+              tone={accentTone}
+              dark={dark}
+              fullOnMobile
+            />
           )}
-          <button
+          <ActionButton
+            label={problems.length ? labels.addProblem : copy.manualAdd}
+            icon="＋"
             onClick={() => {
               setEditing(null);
               setShowEditor(true);
             }}
-            className={`min-h-11 rounded-xl px-4 py-2 text-sm font-semibold ${problems.length ? `border ${dark ? "border-slate-700 text-slate-300" : "border-slate-200 text-slate-600"}` : "text-slate-500"}`}
-          >
-            + {problems.length ? labels.addProblem : copy.manualAdd}
-          </button>
+            tone={accentTone}
+            dark={dark}
+            fullOnMobile
+            variant={problems.length ? "secondary" : "subtle"}
+          />
         </div>
       </section>
 

@@ -15,6 +15,7 @@ import LeetCodeCard, { type LeetCodeProblem, type NewLeetCodeProblem } from "@/c
 import MemosPage, { type Memo } from "@/components/MemosPage";
 import RecurringPlansPage, { RecurringTodayCard } from "@/components/RecurringPlans";
 import type { AccentTone } from "@/components/PrimaryActionCard";
+import ActionButton from "@/components/ActionButton";
 import { occursOnDate, type NewRecurringPlan, type RecurringPlan, type RecurringPlanCompletion } from "@/lib/recurring-plans";
 import { supabase } from "@/lib/supabase";
 
@@ -2448,7 +2449,7 @@ function TodayPage({
             onToggle={onToggleLeetCode}
           />
 
-          <RecurringTodayCard plans={recurringPlans} completions={recurringCompletions} language={language} today={TODAY} dark={dark} onToggle={onToggleRecurring} onOpen={onOpenRecurring} />
+          <RecurringTodayCard plans={recurringPlans} completions={recurringCompletions} language={language} today={TODAY} dark={dark} accentTone={accentTone} onToggle={onToggleRecurring} onOpen={onOpenRecurring} />
 
           <Card dark={dark}>
             <div className="mb-5 flex items-center justify-between">
@@ -2463,12 +2464,7 @@ function TodayPage({
                 </p>
               </div>
 
-              <button
-                onClick={onTasks}
-                className="text-sm text-slate-400 hover:text-slate-600"
-              >
-                {t.viewAll}
-              </button>
+              <ActionButton label={t.viewAll} onClick={onTasks} tone={accentTone} dark={dark} />
             </div>
 
             <div className="space-y-3">
@@ -2519,12 +2515,7 @@ function TodayPage({
                 </p>
               </div>
 
-              <button
-                onClick={onProjects}
-                className="text-sm text-slate-400 hover:text-slate-600"
-              >
-                {t.viewProjects}
-              </button>
+              <ActionButton label={t.viewProjects} onClick={onProjects} tone={accentTone} dark={dark} />
             </div>
 
             <div className="space-y-6">

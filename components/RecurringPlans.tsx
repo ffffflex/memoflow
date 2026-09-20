@@ -12,6 +12,7 @@ import {
 import PrimaryActionCard, {
   type AccentTone,
 } from "@/components/PrimaryActionCard";
+import ActionButton from "@/components/ActionButton";
 
 type Lang = "zh" | "en" | "es";
 type Props = {
@@ -178,6 +179,7 @@ export function RecurringTodayCard({
   language,
   today,
   dark,
+  accentTone,
   onToggle,
   onOpen,
 }: {
@@ -186,6 +188,7 @@ export function RecurringTodayCard({
   language: Lang;
   today: string;
   dark: boolean;
+  accentTone: AccentTone;
   onToggle: (plan: RecurringPlan, date: string) => Promise<void>;
   onOpen: () => void;
 }) {
@@ -207,9 +210,13 @@ export function RecurringTodayCard({
               ? "Planes recurrentes de hoy"
               : "Today’s recurring plans"}
         </h3>
-        <button onClick={onOpen} className="text-sm text-slate-400">
-          {c.title}
-        </button>
+        <ActionButton
+          label={c.title}
+          icon="↻"
+          onClick={onOpen}
+          tone={accentTone}
+          dark={dark}
+        />
       </div>
       <p className="mt-2 text-sm font-semibold text-slate-400">
         {plans.filter((p) => done.has(p.id)).length} / {plans.length}
@@ -282,16 +289,31 @@ export default function RecurringPlansPage(props: Props) {
         <p className="mt-2 text-sm text-slate-400">{subtitle}</p>
       </header>
       <div className="mb-8">
-        <PrimaryActionCard icon="＋" title={actionTitle} description={actionDescription} onClick={() => setEditing(null)} tone={props.accentTone} dark={dark} />
+        <PrimaryActionCard
+          icon="＋"
+          title={actionTitle}
+          description={actionDescription}
+          onClick={() => setEditing(null)}
+          tone={props.accentTone}
+          dark={dark}
+        />
       </div>
       <div className="space-y-4">
         {plans.length === 0 && (
           <div
             className={`rounded-[28px] p-10 text-center text-slate-400 ${dark ? "bg-slate-900" : "bg-white"}`}
           >
-            <h3 className={`font-semibold ${dark ? "text-slate-200" : "text-slate-700"}`}>{c.empty}</h3>
+            <h3
+              className={`font-semibold ${dark ? "text-slate-200" : "text-slate-700"}`}
+            >
+              {c.empty}
+            </h3>
             <p className="mt-3 text-sm leading-7">
-              {language === "zh" ? "例如：每周一敷面膜 · 每两天去健身房 · 每天吃维生素" : language === "es" ? "Por ejemplo: mascarilla semanal · gimnasio cada dos días · vitaminas diarias" : "For example: a weekly mask · gym every two days · daily vitamins"}
+              {language === "zh"
+                ? "例如：每周一敷面膜 · 每两天去健身房 · 每天吃维生素"
+                : language === "es"
+                  ? "Por ejemplo: mascarilla semanal · gimnasio cada dos días · vitaminas diarias"
+                  : "For example: a weekly mask · gym every two days · daily vitamins"}
             </p>
           </div>
         )}
@@ -330,26 +352,36 @@ export default function RecurringPlansPage(props: Props) {
                     · {c[plan.category]}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-3 text-sm font-semibold">
-                  <button
+                <div className="flex flex-wrap gap-2">
+                  <ActionButton
+                    label={c.history}
                     onClick={() => setHistory(plan)}
-                    className="text-slate-400"
-                  >
-                    {c.history}
-                  </button>
-                  <button onClick={() => setEditing(plan)}>{c.edit}</button>
-                  <button
+                    tone={props.accentTone}
+                    dark={dark}
+                    variant="subtle"
+                  />
+                  <ActionButton
+                    label={c.edit}
+                    onClick={() => setEditing(plan)}
+                    tone={props.accentTone}
+                    dark={dark}
+                    variant="subtle"
+                    chevron={false}
+                  />
+                  <ActionButton
+                    label={plan.active ? c.pause : c.resume}
                     onClick={() => void props.onToggleActive(plan)}
-                    className="text-amber-600"
-                  >
-                    {plan.active ? c.pause : c.resume}
-                  </button>
+                    tone={props.accentTone}
+                    dark={dark}
+                    variant="subtle"
+                    chevron={false}
+                  />
                   <button
                     onClick={() => {
                       if (window.confirm(c.deleteConfirm))
                         void props.onDelete(plan.id);
                     }}
-                    className="text-red-500"
+                    className="min-h-11 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-500 transition hover:bg-red-50 active:scale-[0.98]"
                   >
                     {c.del}
                   </button>
