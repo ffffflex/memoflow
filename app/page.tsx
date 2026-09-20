@@ -133,6 +133,8 @@ const translations = {
     unfinished: "个未完成",
     completed: "已完成",
     incomplete: "未完成",
+    incompleteSection: "未完成",
+    completedSection: "已完成",
 
     newTask: "新建任务",
     newProject: "新建项目",
@@ -281,6 +283,8 @@ const translations = {
     unfinished: "unfinished",
     completed: "Completed",
     incomplete: "Incomplete",
+    incompleteSection: "Incomplete",
+    completedSection: "Completed",
 
     newTask: "New Task",
     newProject: "New Project",
@@ -429,6 +433,8 @@ const translations = {
     unfinished: "pendientes",
     completed: "Completado",
     incomplete: "Pendiente",
+    incompleteSection: "Pendientes",
+    completedSection: "Completadas",
 
     newTask: "Nueva tarea",
     newProject: "Nuevo proyecto",
@@ -2618,7 +2624,7 @@ function TodayPage({
             />
           </Card>
 
-          <section className="rounded-[28px] bg-slate-900 p-6 text-white shadow-sm">
+          <Card dark={dark}>
             <p className="text-sm text-slate-400">
               {t.todayProgress}
             </p>
@@ -2634,15 +2640,15 @@ function TodayPage({
               </p>
             </div>
 
-            <div className="mt-5 h-2 rounded-full bg-slate-700">
+            <div className={`mt-5 h-2 overflow-hidden rounded-full ${dark ? "bg-slate-700" : "bg-slate-100"}`}>
               <div
-                className="h-full rounded-full bg-white"
+                className={`h-full rounded-full transition-all ${accentTone === "amber" ? "bg-amber-500" : accentTone === "blue" ? "bg-blue-600" : accentTone === "violet" ? "bg-violet-600" : dark ? "bg-slate-100" : "bg-slate-900"}`}
                 style={{
                   width: `${percentage}%`,
                 }}
               />
             </div>
-          </section>
+          </Card>
         </div>
       </div>
     </>
@@ -2668,6 +2674,18 @@ function TasksPage({
   onCreate: () => void;
   dark: boolean;
 }) {
+  const incompleteTasks = tasks
+    .map((task, index) => ({ task, index }))
+    .filter(({ task }) => !task.completed)
+    .sort((a, b) => a.task.startDate.localeCompare(b.task.startDate) || a.index - b.index)
+    .map(({ task }) => task);
+  const completedTasks = tasks
+    .map((task, index) => ({ task, index }))
+    .filter(({ task }) => task.completed)
+    .sort((a, b) => (b.task.completedAt ?? "").localeCompare(a.task.completedAt ?? "") || a.index - b.index)
+    .map(({ task }) => task);
+  const renderTask = (task: Task) => <TaskItem key={task.id} task={task} t={t} language={language} toggleTask={toggleTask} deleteTask={deleteTask} editTask={editTask} dark={dark} />;
+
   return (
     <>
       <PageHeader
@@ -2678,31 +2696,15 @@ function TasksPage({
       />
 
       <Card dark={dark}>
-        <div className="space-y-3">
+        <div className="space-y-7">
           {tasks.length === 0 ? (
             <EmptyState
               text={t.noTasks}
             />
-          ) : (
-            tasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                t={t}
-                language={language}
-                toggleTask={
-                  toggleTask
-                }
-                deleteTask={
-                  deleteTask
-                }
-                editTask={
-                  editTask
-                }
-                dark={dark}
-              />
-            ))
-          )}
+          ) : <>
+            <section><div className={`mb-3 flex items-center gap-3 border-b pb-2 ${dark ? "border-slate-700" : "border-slate-100"}`}><h3 className="text-sm font-semibold text-slate-500">{t.incompleteSection}</h3><span className="text-xs text-slate-400">{incompleteTasks.length}</span></div><div className="space-y-3">{incompleteTasks.map(renderTask)}</div></section>
+            <section><div className={`mb-3 flex items-center gap-3 border-b pb-2 ${dark ? "border-slate-700" : "border-slate-100"}`}><h3 className="text-sm font-semibold text-slate-500">{t.completedSection}</h3><span className="text-xs text-slate-400">{completedTasks.length}</span></div><div className="space-y-3">{completedTasks.map(renderTask)}</div></section>
+          </>}
         </div>
       </Card>
     </>
@@ -5134,7 +5136,7 @@ function TaskItem({
 
   return (
     <div
-      className={`flex w-full items-center gap-2 rounded-2xl border p-2 transition ${
+      className={`flex w-full items-center gap-2 rounded-2xl border p-2 transition ${task.completed ? "opacity-70" : ""} ${
         dark
           ? "border-slate-700 hover:bg-slate-800"
           : "border-slate-100 hover:bg-slate-50"
