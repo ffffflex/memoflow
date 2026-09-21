@@ -6,6 +6,7 @@ import {
   getPreviousOccurrences,
   type NewRecurringPlan,
   type RecurringPlan,
+  type RecurringPlanAdjustment,
   type RecurringPlanCompletion,
   type RecurrenceType,
 } from "@/lib/recurring-plans";
@@ -18,6 +19,7 @@ type Lang = "zh" | "en" | "es";
 type Props = {
   plans: RecurringPlan[];
   completions: RecurringPlanCompletion[];
+  adjustments: RecurringPlanAdjustment[];
   language: Lang;
   today: string;
   dark: boolean;
@@ -181,6 +183,7 @@ export function RecurringTodayCard({
   dark,
   accentTone,
   onToggle,
+  onDelay,
   onOpen,
 }: {
   plans: RecurringPlan[];
@@ -190,8 +193,10 @@ export function RecurringTodayCard({
   dark: boolean;
   accentTone: AccentTone;
   onToggle: (plan: RecurringPlan, date: string) => Promise<void>;
+  onDelay: (plan: RecurringPlan, date: string) => Promise<boolean>;
   onOpen: () => void;
 }) {
+  const [feedback, setFeedback] = useState("");
   const c = C[language],
     done = new Set(
       completions
@@ -226,16 +231,18 @@ export function RecurringTodayCard({
           <p className="py-4 text-center text-sm text-slate-400">{c.empty}</p>
         )}
         {plans.map((plan) => (
-          <label
+          <div
             key={plan.id}
-            className={`flex cursor-pointer items-start gap-3 rounded-2xl px-3 py-3 ${dark ? "hover:bg-slate-800" : "hover:bg-slate-50"}`}
+            className={`flex items-start gap-3 rounded-2xl px-3 py-3 ${dark ? "hover:bg-slate-800" : "hover:bg-slate-50"}`}
           >
-            <input
-              className="accent-check mt-1 h-4 w-4"
-              type="checkbox"
-              checked={done.has(plan.id)}
-              onChange={() => void onToggle(plan, today)}
-            />
+            <label className="mt-0.5 cursor-pointer p-0.5" aria-label={plan.title}>
+              <input
+                className="accent-check h-4 w-4"
+                type="checkbox"
+                checked={done.has(plan.id)}
+                onChange={() => void onToggle(plan, today)}
+              />
+            </label>
             <span className="min-w-0 flex-1">
               <span
                 className={
@@ -248,15 +255,31 @@ export function RecurringTodayCard({
                 {describeRecurrence(plan, language)}
               </span>
             </span>
-          </label>
+            {plan.recurrenceType === "interval_days" && !done.has(plan.id) && (
+              <ActionButton
+                label={language === "zh" ? "顺延一天" : language === "es" ? "Posponer 1 día" : "Delay 1 Day"}
+                onClick={async () => {
+                  if (await onDelay(plan, today)) {
+                    setFeedback(language === "zh" ? "已顺延一天" : language === "es" ? "Se pospuso 1 día" : "Delayed by 1 day");
+                    window.setTimeout(() => setFeedback(""), 2400);
+                  }
+                }}
+                tone={accentTone}
+                dark={dark}
+                variant="subtle"
+                chevron={false}
+              />
+            )}
+          </div>
         ))}
       </div>
+      {feedback && <p className="accent-soft mt-3 rounded-xl px-3 py-2 text-sm font-semibold">{feedback}</p>}
     </section>
   );
 }
 
 export default function RecurringPlansPage(props: Props) {
-  const { plans, completions, language, today, dark } = props,
+  const { plans, completions, adjustments, language, today, dark } = props,
     c = C[language];
   const [editing, setEditing] = useState<RecurringPlan | null | undefined>(
     undefined,
@@ -318,7 +341,8 @@ export default function RecurringPlansPage(props: Props) {
           </div>
         )}
         {plans.map((plan) => {
-          const next = plan.active ? getNextOccurrence(plan, today) : null;
+          const planAdjustments = adjustments.filter((item) => item.planId === plan.id);
+          const next = plan.active ? getNextOccurrence(plan, today, planAdjustments) : null;
           return (
             <article
               key={plan.id}
@@ -406,11 +430,11 @@ export default function RecurringPlansPage(props: Props) {
       {history && (
         <Modal title={history.title} dark={dark} close={() => setHistory(null)}>
           <h4 className="mb-4 font-semibold">{c.history}</h4>
-          {getPreviousOccurrences(history, today, 12).length === 0 ? (
+          {getPreviousOccurrences(history, today, 12, adjustments.filter((item) => item.planId === history.id)).length === 0 ? (
             <p className="text-sm text-slate-400">{c.noHistory}</p>
           ) : (
             <div className="space-y-2">
-              {getPreviousOccurrences(history, today, 12).map((date) => (
+              {getPreviousOccurrences(history, today, 12, adjustments.filter((item) => item.planId === history.id)).map((date) => (
                 <div
                   key={date}
                   className={`flex justify-between rounded-xl px-3 py-2 ${dark ? "bg-slate-800" : "bg-slate-50"}`}
