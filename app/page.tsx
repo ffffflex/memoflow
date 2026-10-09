@@ -19,6 +19,7 @@ import type { AccentTone } from "@/components/PrimaryActionCard";
 import ActionButton from "@/components/ActionButton";
 import { occursOnDate, type NewRecurringPlan, type RecurringPlan, type RecurringPlanAdjustment, type RecurringPlanCompletion } from "@/lib/recurring-plans";
 import { supabase } from "@/lib/supabase";
+import useCurrentLocalDate from "@/hooks/useCurrentLocalDate";
 
 type Language = "zh" | "en" | "es";
 
@@ -97,8 +98,6 @@ type RealtimePayload = {
   new: Record<string, unknown>;
   old: Record<string, unknown>;
 };
-
-const TODAY = getLocalDateString(new Date());
 
 const accentPalettes: Record<Theme, Record<string, string>> = {
   default: { "--accent": "#0f172a", "--accent-hover": "#1e293b", "--accent-soft": "rgba(15,23,42,.07)", "--accent-soft-hover": "rgba(15,23,42,.12)", "--accent-border": "rgba(15,23,42,.24)", "--accent-foreground": "#ffffff" },
@@ -593,6 +592,7 @@ const categoryStyles: Record<
 };
 
 export default function Home() {
+  const currentDate = useCurrentLocalDate();
   const [user, setUser] =
     useState<User | null>(null);
 
@@ -1280,28 +1280,28 @@ export default function Home() {
       // Tasks completed on an earlier day do not carry into today.
       if (task.taskType === "long_term") {
         if (task.completed) {
-          return task.completedAt === TODAY;
+          return task.completedAt === currentDate;
         }
 
-        return task.startDate <= TODAY;
+        return task.startDate <= currentDate;
       }
 
       const scheduledToday =
-        task.startDate <= TODAY &&
+        task.startDate <= currentDate &&
         !!task.endDate &&
-        task.endDate >= TODAY;
+        task.endDate >= currentDate;
 
       if (!scheduledToday) {
         return false;
       }
 
       if (task.completed) {
-        return task.completedAt === TODAY;
+        return task.completedAt === currentDate;
       }
 
       return true;
     });
-  }, [tasks]);
+  }, [tasks, currentDate]);
 
   const clearClipboard = async () => {
     if (!user) return;
@@ -1495,7 +1495,7 @@ export default function Home() {
 
     const completed = !task.completed;
     const completedAt = completed
-      ? TODAY
+      ? currentDate
       : null;
 
     const { error } = await supabase
@@ -1946,6 +1946,7 @@ export default function Home() {
               <TodayPage
                 t={t}
                 language={language}
+                currentDate={currentDate}
                 tasks={todayTasks}
                 projects={projects}
                 toggleTask={toggleTask}
@@ -1969,7 +1970,7 @@ export default function Home() {
                 onUpdateLeetCode={updateLeetCodeProblem}
                 onDeleteLeetCode={deleteLeetCodeProblem}
                 onToggleLeetCode={toggleLeetCodeProblem}
-                recurringPlans={recurringPlans.filter((plan) => plan.active && occursOnDate(plan, TODAY, recurringAdjustments.filter((item) => item.planId === plan.id)))}
+                recurringPlans={recurringPlans.filter((plan) => plan.active && occursOnDate(plan, currentDate, recurringAdjustments.filter((item) => item.planId === plan.id)))}
                 recurringCompletions={recurringCompletions}
                 onDelayRecurring={delayRecurringPlan}
                 onToggleRecurring={toggleRecurringOccurrence}
@@ -1985,6 +1986,7 @@ export default function Home() {
                 projects={projects}
                 onCreate={openCreate}
                 dark={isDark}
+                currentDate={currentDate}
               />
             )}
 
@@ -2070,7 +2072,7 @@ export default function Home() {
               />
             )}
 
-            {page === "recurring" && <RecurringPlansPage plans={recurringPlans} completions={recurringCompletions} adjustments={recurringAdjustments} language={language} today={TODAY} dark={isDark} accentTone={accentTone} onCreate={createRecurringPlan} onUpdate={updateRecurringPlan} onToggleActive={toggleRecurringPlanActive} onDelete={deleteRecurringPlan} />}
+            {page === "recurring" && <RecurringPlansPage plans={recurringPlans} completions={recurringCompletions} adjustments={recurringAdjustments} language={language} today={currentDate} dark={isDark} accentTone={accentTone} onCreate={createRecurringPlan} onUpdate={updateRecurringPlan} onToggleActive={toggleRecurringPlanActive} onDelete={deleteRecurringPlan} />}
 
             {page === "trash" && (
               <TrashPage
@@ -2261,6 +2263,7 @@ export default function Home() {
       {createOpen && (
         <CreateModal
           t={t}
+          currentDate={currentDate}
           projects={projects}
           type={createType}
           setType={setCreateType}
@@ -2386,6 +2389,7 @@ export default function Home() {
 function TodayPage({
   t,
   language,
+  currentDate,
   tasks,
   projects,
   toggleTask,
@@ -2413,6 +2417,7 @@ function TodayPage({
 }: {
   t: (typeof translations)[Language];
   language: Language;
+  currentDate: string;
   tasks: Task[];
   projects: Project[];
   toggleTask: (id: string) => void | Promise<void>;
@@ -2461,7 +2466,7 @@ function TodayPage({
         <div>
           <p className="text-sm font-medium text-slate-400">
             {formatFullDate(
-              TODAY,
+              currentDate,
               language
             )}
           </p>
@@ -2489,7 +2494,7 @@ function TodayPage({
             problems={leetcodeProblems}
             labels={t}
             language={language}
-            today={TODAY}
+            today={currentDate}
             dark={dark}
             accentTone={accentTone}
             onCreate={onCreateLeetCode}
@@ -2499,7 +2504,7 @@ function TodayPage({
             onToggle={onToggleLeetCode}
           />
 
-          <RecurringTodayCard plans={recurringPlans} completions={recurringCompletions} language={language} today={TODAY} dark={dark} accentTone={accentTone} onToggle={onToggleRecurring} onDelay={onDelayRecurring} onOpen={onOpenRecurring} />
+          <RecurringTodayCard plans={recurringPlans} completions={recurringCompletions} language={language} today={currentDate} dark={dark} accentTone={accentTone} onToggle={onToggleRecurring} onDelay={onDelayRecurring} onOpen={onOpenRecurring} />
 
           <Card dark={dark}>
             <div className="mb-5 flex items-center justify-between">
@@ -2664,7 +2669,9 @@ function TodayPage({
         <div className="space-y-6">
           <Card dark={dark}>
             <SmallCalendar
+              key={currentDate}
               language={language}
+              currentDate={currentDate}
             />
           </Card>
 
@@ -3619,6 +3626,7 @@ function CalendarPage({
   projects,
   onCreate,
   dark,
+  currentDate,
 }: {
   t: (typeof translations)[Language];
   language: Language;
@@ -3626,6 +3634,7 @@ function CalendarPage({
   projects: Project[];
   onCreate: () => void;
   dark: boolean;
+  currentDate: string;
 }) {
   return (
     <>
@@ -3642,10 +3651,12 @@ function CalendarPage({
           style={{ scrollbarGutter: "stable" }}
         >
           <DynamicCalendar
+            key={currentDate}
             tasks={tasks}
             projects={projects}
             language={language}
             dark={dark}
+            currentDate={currentDate}
           />
         </div>
       </Card>
@@ -4075,6 +4086,7 @@ function SettingsPage({
 
 function CreateModal({
   t,
+  currentDate,
   projects,
   type,
   setType,
@@ -4083,6 +4095,7 @@ function CreateModal({
   onCreateProject,
 }: {
   t: (typeof translations)[Language];
+  currentDate: string;
   projects: Project[];
   type: "choose" | "task" | "project";
   setType: (
@@ -4170,6 +4183,7 @@ function CreateModal({
         {type === "task" && (
           <TaskForm
             t={t}
+            currentDate={currentDate}
             projects={projects}
             onBack={() =>
               setType("choose")
@@ -4183,6 +4197,7 @@ function CreateModal({
         {type === "project" && (
           <ProjectForm
             t={t}
+            currentDate={currentDate}
             onBack={() =>
               setType("choose")
             }
@@ -4198,11 +4213,13 @@ function CreateModal({
 
 function TaskForm({
   t,
+  currentDate,
   projects,
   onBack,
   onCreate,
 }: {
   t: (typeof translations)[Language];
+  currentDate: string;
   projects: Project[];
   onBack: () => void;
   onCreate: (
@@ -4219,10 +4236,10 @@ function TaskForm({
     useState<TaskType>("multi_day");
 
   const [startDate, setStartDate] =
-    useState(TODAY);
+    useState(currentDate);
 
   const [endDate, setEndDate] =
-    useState(TODAY);
+    useState(currentDate);
 
   const [time, setTime] =
     useState("");
@@ -4424,10 +4441,12 @@ function TaskForm({
 
 function ProjectForm({
   t,
+  currentDate,
   onBack,
   onCreate,
 }: {
   t: (typeof translations)[Language];
+  currentDate: string;
   onBack: () => void;
   onCreate: (
     project: NewProject
@@ -4444,10 +4463,10 @@ function ProjectForm({
   const [
     startDate,
     setStartDate,
-  ] = useState(TODAY);
+  ] = useState(currentDate);
 
   const [endDate, setEndDate] =
-    useState("2026-08-30");
+    useState(currentDate);
 
   const [category, setCategory] =
     useState<CategoryName>(
@@ -5367,12 +5386,13 @@ function ProjectItem({
 
 function SmallCalendar({
   language,
+  currentDate,
 }: {
   language: Language;
+  currentDate: string;
 }) {
-  const [month, setMonth] = useState(() => startOfMonth(new Date()));
+  const [month, setMonth] = useState(() => startOfMonth(new Date(`${currentDate}T12:00:00`)));
   const days = createMonthCalendar(month);
-  const today = TODAY;
 
   return (
     <>
@@ -5418,7 +5438,7 @@ function SmallCalendar({
       <div className="grid grid-cols-7 gap-1">
         {days.map((dayInfo, index) => {
           const isToday =
-            dayInfo.dateString === today;
+            dayInfo.dateString === currentDate;
 
           return (
             <button
@@ -5449,13 +5469,15 @@ function DynamicCalendar({
   projects,
   language,
   dark,
+  currentDate,
 }: {
   tasks: Task[];
   projects: Project[];
   language: Language;
   dark: boolean;
+  currentDate: string;
 }) {
-  const [month, setMonth] = useState(() => startOfMonth(new Date()));
+  const [month, setMonth] = useState(() => startOfMonth(new Date(`${currentDate}T12:00:00`)));
   const days = createMonthCalendar(month);
 
   return (
@@ -5479,7 +5501,7 @@ function DynamicCalendar({
 
           <button
             onClick={() =>
-              setMonth(startOfMonth(new Date()))
+              setMonth(startOfMonth(new Date(`${currentDate}T12:00:00`)))
             }
             className="accent-text mt-1 text-xs font-medium"
           >
@@ -5526,8 +5548,8 @@ function DynamicCalendar({
                 }
 
                 return (
-                  task.startDate <= TODAY &&
-                  date === TODAY
+                  task.startDate <= currentDate &&
+                  date === currentDate
                 );
               }
 
@@ -5545,7 +5567,7 @@ function DynamicCalendar({
               project.endDate >= date
           );
 
-          const isToday = date === TODAY;
+          const isToday = date === currentDate;
 
           return (
             <div
